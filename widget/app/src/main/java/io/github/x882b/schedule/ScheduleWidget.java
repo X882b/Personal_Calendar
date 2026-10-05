@@ -7,7 +7,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.widget.RemoteViews;
 
 import java.text.SimpleDateFormat;
@@ -74,7 +73,8 @@ public class ScheduleWidget extends AppWidgetProvider {
             rows.setData(Uri.parse(rows.toUri(Intent.URI_INTENT_SCHEME)));   // one adapter per widget
             v.setRemoteAdapter(R.id.list, rows);
             v.setEmptyView(R.id.list, R.id.empty);
-            v.setTextViewText(R.id.empty, s.connected() ? "Loading…" : "Not connected yet.\nTap to set up.");
+            v.setTextViewText(R.id.empty, !s.connected() ? "Not connected yet.\nTap to set up."
+                    : s.error().isEmpty() ? "Loading…" : "Couldn't load the calendar:\n" + s.error());
 
             PendingIntent setup = PendingIntent.getActivity(c, 0, new Intent(c, SetupActivity.class),
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
@@ -85,10 +85,10 @@ public class ScheduleWidget extends AppWidgetProvider {
             v.setOnClickPendingIntent(R.id.refresh, PendingIntent.getBroadcast(c, 3,
                     new Intent(c, ScheduleWidget.class).setAction(ACTION_REFRESH),
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
-            // rows fill in an empty intent, so the template has to be mutable
-            v.setPendingIntentTemplate(R.id.list, ready
-                    ? openUrl(c, s.appUrl(), 4, Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0)
-                    : setup);
+            // Every row opens the same address, so the template stays immutable and the rows'
+            // (empty) fill-in intents are ignored. A mutable PendingIntent around an implicit
+            // intent like this one throws on Android 14+.
+            v.setPendingIntentTemplate(R.id.list, open);
             m.updateAppWidget(id, v);
         }
     }

@@ -47,3 +47,8 @@ android {
         abortOnError false
     }
 }
+
+// the sources contain "·" and "…"
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+}

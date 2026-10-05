@@ -14,6 +14,7 @@ It opens and works offline. Changes made offline sync once you're back online.
 | `sw.js` | Service worker. Caches the app so it opens offline. |
 | `icon-192.png`, `icon-512.png`, `icon-maskable.png` | Home screen icons. |
 | `tests/two-phones.js` | Optional browser test. Not needed to run the app. |
+| `widget/` | The Android home-screen widget (a small separate app). |
 
 ## 1. Put it online with GitHub Pages
 
@@ -97,12 +98,41 @@ whatever is missing and never overwrites newer changes. With sharing on, the
 private repo is already a backup, so this is mostly for before you switch
 phones without sharing.
 
-## A widget on the home screen?
+## 5. The home-screen widget (Android)
 
-A web app like this one can't put a widget on the Android home screen; only
-installed native apps can. What it does have is the home screen icon and
-the long-press **New event** shortcut.
+A small separate app, **Schedule widget**, puts today and the coming days on
+the home screen in your two colours. It reads the same calendar, so it needs
+sharing (step 3) to be on. Do this on each phone.
 
-A real widget is possible as a small separate Android app that reads the same
-`calendar.json` and shows today and the next few days in your colours. See
-`CLAUDE.md` → Open threads.
+**Install it**
+
+1. On the phone, open
+   `https://github.com/X882b/Personal_Calendar/releases/latest` and tap
+   `schedule-widget.apk`.
+2. Open the download. Android asks to allow installs from Chrome (or Files):
+   allow it, then **Install**. Play Protect may say the app is unknown, since
+   it isn't from the Play Store: tap **Install anyway**.
+
+**Connect it**
+
+3. Open Schedule → ⚙ → **Connect the phone widget**. The widget app opens
+   already connected.
+4. Tap **Add the widget to the home screen**. Or long-press the home screen →
+   Widgets → Schedule.
+
+**Using it**
+
+- Tap a day or an event to open Schedule; **+** opens a new event.
+- It refreshes about every 30 minutes (Android won't allow more often), and
+  straight away with **↻**. A change made on one phone shows on the other
+  phone's widget within that time.
+- Drag its edges to resize; the list scrolls.
+
+**Updating it**
+
+Every change to `widget/` that reaches `main` builds a new APK and publishes
+it as a new release. Install it the same way; it goes over the old one and
+keeps the connection.
+
+If the release page shows nothing yet, the build hasn't run on `main`: check
+the repo's **Actions** tab.
