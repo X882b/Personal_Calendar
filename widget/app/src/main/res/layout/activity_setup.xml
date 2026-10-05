@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/steel"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textColor="@color/chalk"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/chalk"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/pin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:backgroundTint="@color/blue"
+            android:text="Add the widget to the home screen"
+            android:textColor="#ffffff" />
+
+        <Button
+            android:id="@+id/refresh"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:backgroundTint="@color/raised"
+            android:text="Update now"
+            android:textColor="@color/chalk" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Connect"
+            android:textColor="@color/chalk"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:lineSpacingExtra="3dp"
+            android:text="The easy way: in Schedule, open ⚙ and tap “Connect the phone widget”.\n\nOr paste the link from “Set up other phone” here:"
+            android:textColor="@color/dim"
+            android:textSize="14sp" />
+
+        <EditText
+            android:id="@+id/link"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="https://…#join=…"
+            android:importantForAutofill="no"
+            android:inputType="textUri|textMultiLine"
+            android:maxLines="3"
+            android:textColor="@color/chalk"
+            android:textColorHint="@color/dim" />
+
+        <Button
+            android:id="@+id/connect"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:backgroundTint="@color/raised"
+            android:text="Connect"
+            android:textColor="@color/chalk" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:lineSpacingExtra="3dp"
+            android:text="The widget only reads the calendar. Changes are made in the Schedule app. It updates about every 30 minutes, or straight away with its ↻ button."
+            android:textColor="@color/dim"
+            android:textSize="13sp" />
+    </LinearLayout>
+</ScrollView>

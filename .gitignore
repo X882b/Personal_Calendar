@@ -1,0 +1,6 @@
+# Android build output
+widget/.gradle/
+widget/build/
+widget/app/build/
+widget/local.properties
+*.apk

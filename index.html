@@ -562,6 +562,8 @@ function settingsSheet(){
           <button class="btn ghost" data-act="shareSetup">Set up other phone</button>
         </div>
         <div class="muted">"Set up other phone" makes a link that connects the other phone in one tap. It contains the access token, so send it only to each other.</div>
+        ${/Android/i.test(navigator.userAgent) ? `<button class="btn ghost wide" data-act="widget">Connect the phone widget</button>
+        <div class="muted">Opens the Schedule widget app already connected. Install that app first (see the README).</div>` : ""}
         <button class="linkbtn" data-act="unlink">Disconnect this phone</button>`
       : `<details>
           <summary>How to turn sharing on</summary>
@@ -716,6 +718,16 @@ async function sync(){
 function setupLink(){
   return location.href.split("#")[0] + "#join=" + encodeURIComponent(b64e(JSON.stringify({repo:L.repo, token:L.token})));
 }
+// Opens the Android widget app with the same connection. If the app isn't installed,
+// Chrome goes to the fallback: the page the APK is downloaded from.
+function widgetLink(){
+  const d = encodeURIComponent(b64e(JSON.stringify({repo:L.repo, token:L.token})));
+  const app = encodeURIComponent(location.href.split("#")[0]);
+  const owner = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split("/")[1];
+  const fallback = owner && repo
+    ? ";S.browser_fallback_url=" + encodeURIComponent("https://github.com/" + owner[1] + "/" + repo + "/releases/latest") : "";
+  return "intent://setup?d=" + d + "&u=" + app + "#Intent;scheme=schedulewidget;package=io.github.x882b.schedule" + fallback + ";end";
+}
 function cleanRepo(s){
   return s.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/, "").replace(/\/+$/, "");
 }
@@ -794,6 +806,7 @@ document.body.addEventListener("click", e=>{
     else if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>alert("Link copied. Send it to the other phone."), ()=>prompt("Copy this link:", link));
     else prompt("Copy this link:", link);
   }
+  else if(a === "widget") location.href = widgetLink();
   else if(a === "unlink"){
     L.repo = ""; L.token = ""; saveLocal(); setSync("off"); settingsSheet();
   }
@@ -859,6 +872,12 @@ document.addEventListener("visibilitychange", ()=>{
   if(document.visibilityState === "visible"){ render(); sync(); }
 });
 window.addEventListener("online", ()=>sync());
+// the widget's + opens index.html#new; when the app is already open that's only a hash change
+window.addEventListener("hashchange", ()=>{
+  if(location.hash !== "#new") return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if(L.me) eventSheet(null, today());
+});
 setInterval(()=>{
   if(document.visibilityState !== "visible") return;
   render();            // moves "today" past midnight and greys out what's over

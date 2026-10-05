@@ -147,6 +147,15 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert(repo.file.split('\n').length > 8, 'file is one event per line');
   await pa.screenshot({path:SHOTS+'/07-settings-synced.png'});
   const link = await pa.evaluate(()=>setupLink());
+  // the Android widget app gets the same connection through an intent:// link
+  assert(await pa.isVisible('[data-act="widget"]'), 'Android shows "Connect the phone widget"');
+  const wl = await pa.evaluate(()=>widgetLink());
+  const wm = wl.match(/^intent:\/\/setup\?d=([^&#]+)&u=([^#]+)#Intent;scheme=schedulewidget;package=io\.github\.x882b\.schedule;end$/);
+  assert(wm, 'widget link is a well-formed intent URL: ' + wl.slice(0, 60) + '…');
+  const wd = JSON.parse(Buffer.from(decodeURIComponent(wm[1]), 'base64').toString('utf8'));
+  assert(wd.repo === 'test/data' && wd.token === 'tok123', 'widget link carries repo and token');
+  assert(decodeURIComponent(wm[2]) === 'http://localhost:8123/', 'widget link carries the app address');
+  fs.writeFileSync(path.join(SHOTS, 'widget-link.txt'), wl);
   await pa.click('[data-act="settings"]').catch(()=>{});
   await pa.goBack();
 
@@ -190,6 +199,12 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   const ev = remoteEvents();
   assert(ev.find(e=>e.title==='Haircut') && ev.find(e=>e.title==='Gym (legs)') && ev.some(e=>e.del), 'repo has both edits and the delete tombstone');
   assert(!ev.some(e=>e.title==='Dentist'), 'deleted event is gone from the repo');
+
+  // the widget's + button opens index.html#new while the app is already open
+  await pa.evaluate(()=>{ location.hash = 'new'; });
+  await pa.waitForSelector('#f-title');
+  assert((await pa.textContent('#sheetbox h2')) === 'New event' && !(await pa.url()).includes('#new'), '#new opens the new-event sheet and is cleared');
+  await pa.goBack();
 
   // names/colours sync
   await pb.click('#gear');

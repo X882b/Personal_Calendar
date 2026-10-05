@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Schedule widget</string>
+    <string name="widget_name">Schedule</string>
+    <string name="widget_desc">Today and the coming days, in your colours</string>
+</resources>
