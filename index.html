@@ -99,6 +99,18 @@ label{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
 .pill.on.ab{background:linear-gradient(90deg,var(--pa) 50%,var(--pb) 50%);border-color:var(--edge);color:#111316}
 .pill.on .dot{box-shadow:0 0 0 1.5px #111316}
 .seg.bad .pill{border-color:var(--red)}
+.chips .xbtn{margin-left:auto;color:var(--chalk)}
+.chips.cats{margin-top:-6px}
+.chips.cats .pill{white-space:nowrap;border-radius:8px}
+.chips.cats .pill.on{background:var(--chalk);border-color:var(--chalk);color:#111316}
+.newcat{display:flex;gap:8px;margin-top:8px}
+.newcat .btn{padding:10px 16px}
+.catrow{display:flex;gap:8px;align-items:center}
+.x{color:var(--dim);padding:9px 11px;font-size:15px;line-height:1;border-radius:6px;flex:none}
+.x.warn{color:#fff;background:var(--red)}
+.xstep{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.xstep b{font-size:17px;text-align:center}
+.xprev{display:block;width:100%;min-height:60px;border-radius:8px;border:1px solid var(--edge);background:#fff}
 .linkbtn{color:var(--dim);font-size:13px;text-decoration:underline;text-underline-offset:3px}
 .empty{text-align:center;color:var(--dim);padding:22px 12px}
 
@@ -252,21 +264,26 @@ function writeJSON(k, v){
 /* ---------- state ---------- */
 const COLORS = ["#3fb0e8","#ef6f8e","#4cc38a","#e9a23b","#a487f0","#2fc4c4","#f07a4b","#c6cf4a"];
 const PEOPLE = ["a","b"];
+// Fixed ids and u:0, so two phones that start fresh hold the same three records, not six.
+const SEED_CATS = [["work","Work schedule"],["doctors","Doctors"],["birthdays","Birthdays"]];
 const blankDoc = () => ({
   people:[{id:"a", name:"", color:COLORS[0], u:0}, {id:"b", name:"", color:COLORS[1], u:0}],
+  cats:SEED_CATS.map(([id, name])=>({id, name, free:"", u:0})),
   events:[]
 });
 // S is shared between the phones. Every record carries u (last change, ms);
 // on sync the newer copy of each record wins. Deletes leave a tombstone.
 let S = blankDoc();
 // L belongs to this phone only.
-let L = {me:"", filter:"all", tab:"up", repo:"", token:"", dirty:false, last:0};
+let L = {me:"", filter:"all", cat:"", tab:"up", lang:"en", xkind:"m", repo:"", token:"", dirty:false, last:0};
 let month = "", selDay = "", ahead = 60, edits = 0;
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const person = id => S.people.find(p=>p.id === id) || blankDoc().people[id === "b" ? 1 : 0];
 const name = id => person(id).name || (id === "b" ? "Person 2" : "Person 1");
 const stamp = old => Math.max(Date.now(), old && old.u ? old.u + 1 : 0);
+const cats = () => S.cats.filter(c=>!c.del).sort((x,y)=>x.name.localeCompare(y.name));
+const catById = id => id ? S.cats.find(c=>c.id === id && !c.del) || null : null;
 
 function saveDoc(){ writeJSON(DOC_KEY, S); }
 function saveLocal(){ writeJSON(LOCAL_KEY, L); }
@@ -275,9 +292,9 @@ function changed(){
   edits++; L.dirty = true;
   saveDoc(); saveLocal(); render(); scheduleSync(1200);
 }
-function upsert(rec){
-  const i = S.events.findIndex(e=>e.id === rec.id);
-  if(i < 0) S.events.push(rec); else S.events[i] = rec;
+function upsert(rec, list){
+  const arr = S[list || "events"], i = arr.findIndex(e=>e.id === rec.id);
+  if(i < 0) arr.push(rec); else arr[i] = rec;
 }
 
 /* ---------- date helpers ---------- */
@@ -331,7 +348,9 @@ function occStart(ev, day){
   return "";
 }
 function visible(){
-  return S.events.filter(e => !e.del && e.date && (L.filter === "all" || e.who === L.filter || e.who === "ab"));
+  const c = catById(L.cat);
+  return S.events.filter(e => !e.del && e.date && (L.filter === "all" || e.who === L.filter || e.who === "ab")
+    && (!c || e.cat === c.id));
 }
 // [{ev, s}] for one day: all-day and continuing trips first, then by start time.
 function dayEvents(list, day){
@@ -362,7 +381,8 @@ function whoText(w){
 function evRow(o, day){
   const ev = o.ev, span = spanOf(ev), first = o.s === day;
   const timed = ev.from && first;
-  const bits = [whoText(ev.who)];
+  const bits = [whoText(ev.who)], c = catById(ev.cat);
+  if(c && c.name !== ev.title) bits.push(esc(c.name));
   if(span) bits.push("day " + (diffDays(o.s, day)+1) + " of " + (span+1));
   if(ev.repeat) bits.push(REPEAT_TEXT[ev.repeat] || "");
   if(ev.note) bits.push(esc(ev.note.split("\n")[0]));
@@ -378,10 +398,15 @@ function evRow(o, day){
 }
 function chips(){
   const one = (v, t, cls) => `<button class="pill ${cls} ${L.filter === v ? "on" : ""}" data-act="filter" data-v="${v}">${t}</button>`;
+  const cur = catById(L.cat) ? L.cat : "";
+  const cs = [["", "All categories"]].concat(cats().map(c=>[c.id, esc(c.name)]));
   return `<div class="chips">
     ${one("all", "All", "")}
     ${PEOPLE.map(p=>one(p, `<i class="dot ${p}"></i>${esc(name(p))}`, p)).join("")}
-  </div>`;
+    <button class="pill xbtn" data-act="xopen">Export</button>
+  </div>
+  ${cs.length > 1 ? `<div class="chips cats">${cs.map(([v, t])=>
+    `<button class="pill ${cur === v ? "on" : ""}" data-act="catf" data-v="${v}">${t}</button>`).join("")}</div>` : ""}`;
 }
 
 /* --- Upcoming: the next seven days always, after that only days with something on --- */
@@ -469,21 +494,25 @@ sheet.addEventListener("click", e=>{ if(e.target === sheet) closeSheet(); });
 
 const $ = id => document.getElementById(id);
 const val = id => { const el = $(id); return el ? el.value : ""; };
-function seg(key, options, value){
+function seg(key, options, value, extra){
   return `<div class="seg" data-seg="${key}" data-val="${value}">${options.map(([v, t, cls])=>
-    `<button class="pill ${cls||""} ${v === value ? "on" : ""}" data-act="seg" data-v="${v}">${t}</button>`).join("")}</div>`;
+    `<button class="pill ${cls||""} ${v === value ? "on" : ""}" data-act="seg" data-v="${v}">${t}</button>`).join("")}${extra||""}</div>`;
 }
 const segVal = key => { const el = box.querySelector(`[data-seg="${key}"]`); return el ? el.dataset.val : ""; };
 const whoOptions = () => [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"], ["ab", "Both", "ab"]];
 
 function eventSheet(id, day){
   const old = id ? S.events.find(e=>e.id === id) : null;
-  const ev = old || {title:"", who:L.me || "a", date:day || today(), last:"", from:"", to:"", repeat:"", until:"", note:""};
+  const ev = old || {title:"", who:L.me || "a", cat:catById(L.cat) ? L.cat : "", date:day || today(), last:"", from:"", to:"", repeat:"", until:"", note:""};
   const occ = day || ev.date;
+  const catOpts = [["", "None"]].concat(cats().map(c=>[c.id, esc(c.name)]));
   openSheet(`<h2>${old ? "Edit" : "New event"}</h2>
     <div class="stack">
       <div><label>What</label><input id="f-title" value="${esc(ev.title)}" placeholder="Dentist, dinner, trip…" autocomplete="off" enterkeyhint="done"></div>
       <div><label>Who</label>${seg("who", whoOptions(), ev.who)}</div>
+      <div><label>Category</label>${seg("cat", catOpts, catById(ev.cat) ? ev.cat : "", `<button class="pill" data-act="catNew">+ New</button>`)}
+        <div class="newcat" id="newcat" hidden><input id="f-newcat" placeholder="New category" autocomplete="off" enterkeyhint="done"><button class="btn" data-act="catAdd">Add</button></div>
+        <div class="muted">With a category, the title can stay empty: it takes the category's name.</div></div>
       <div class="two">
         <div><label>Day</label><input id="f-date" type="date" value="${ev.date}"></div>
         <div><label>Last day (trips)</label><input id="f-last" type="date" value="${ev.last||""}"></div>
@@ -508,7 +537,9 @@ function eventSheet(id, day){
 }
 
 function saveEvent(id){
-  const title = val("f-title").trim();
+  const c = catById(segVal("cat"));
+  // a shift in "Work schedule" needs no title of its own
+  const title = val("f-title").trim() || (c ? c.name : "");
   if(!title){ const t = $("f-title"); t.classList.add("bad"); t.focus(); return; }
   const date = val("f-date") || today();
   let last = val("f-last"), from = val("f-from"), to = val("f-to");
@@ -519,10 +550,24 @@ function saveEvent(id){
   const old = id ? S.events.find(e=>e.id === id) : null;
   // keep fields this version doesn't know about, in case a newer copy wrote them
   upsert(Object.assign({}, old || {skip:[]}, {
-    id: old ? old.id : uid(), title, who: segVal("who") || "a", date, last, from, to,
+    id: old ? old.id : uid(), title, who: segVal("who") || "a", cat: c ? c.id : "", date, last, from, to,
     repeat, until, note: val("f-note").trim(), by: L.me, u: stamp(old)
   }));
   closeSheet(); changed();
+}
+
+// "+ New" in the event form: make the category and pick it, without leaving the form
+function addCatInline(){
+  const inp = $("f-newcat"), n = inp.value.trim();
+  if(!n){ inp.classList.add("bad"); inp.focus(); return; }
+  let c = cats().find(k=>k.name.toLowerCase() === n.toLowerCase());
+  if(!c){ c = {id:uid(), name:n, free:"", u:Date.now()}; S.cats.push(c); changed(); }
+  const wrap = box.querySelector('[data-seg="cat"]');
+  if(!wrap.querySelector(`[data-v="${c.id}"]`))
+    wrap.querySelector('[data-act="catNew"]').insertAdjacentHTML("beforebegin", `<button class="pill" data-act="seg" data-v="${c.id}">${esc(c.name)}</button>`);
+  wrap.dataset.val = c.id;
+  wrap.querySelectorAll('[data-act="seg"]').forEach(x=>x.classList.toggle("on", x.dataset.v === c.id));
+  inp.value = ""; $("newcat").hidden = true;
 }
 
 function welcomeSheet(){
@@ -554,6 +599,14 @@ function settingsSheet(){
         <div class="sws">${COLORS.map(c=>`<button class="sw ${c === person(p).color ? "on" : ""}" style="background:${c}" data-act="color" data-p="${p}" data-v="${c}" aria-label="Colour ${c}"></button>`).join("")}</div>
       </div>`).join("")}
       <div><label>This phone belongs to</label>${seg("me", [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], L.me)}</div>
+      <hr>
+      <h3>Categories</h3>
+      <div class="muted">Filter the calendar by category, or export one as an image. Shared by both phones.</div>
+      ${cats().map(c=>`<div class="catrow">
+        <input id="s-cat-${c.id}" data-cat="${c.id}" value="${esc(c.name)}" autocomplete="off">
+        <button class="x" data-act="catDel" data-id="${c.id}" aria-label="Delete ${esc(c.name)}">✕</button>
+      </div>`).join("")}
+      <button class="btn ghost wide" data-act="catCreate">+ Add category</button>
       <hr>
       <h3>Sharing between phones</h3>
       <div class="muted" id="s-status">${esc(syncDetail())}</div>
@@ -587,6 +640,229 @@ function settingsSheet(){
     </div>`);
 }
 
+/* ---------- export as an image ---------- */
+// Drawn like a printed rota: a weekday header, then for each week a row of dates
+// and a row of what's on, each week in its own pastel band. Year: twelve small months.
+const LANGS = [["en","English","en-GB"],["es","Español","es-ES"],["sr","Srpski","sr-Latn-RS"],["sc","Српски","sr-Cyrl-RS"]];
+const XP = {
+  head:["#FCE4D6","#C55A11"],
+  bands:[["#DAE3F3","#203864"],["#FFF2CC","#7F6000"],["#E2EFDA","#375623"],["#E4DFEC","#7030A0"],["#FFC7CE","#9C0006"]],
+  font:'Calibri, Carlito, "Segoe UI", Roboto, Arial, sans-serif'
+};
+let X = null;   // the export sheet's choices while it's open
+
+const fmt = (lang, opt) => new Intl.DateTimeFormat((LANGS.find(l=>l[0] === lang) || LANGS[0])[2], Object.assign({timeZone:"UTC"}, opt));
+const cap = s => s.charAt(0).toLocaleUpperCase() + s.slice(1);
+const weekStart = s => addDays(s, -((weekday(s) + 6) % 7));
+const xfont = (px, style) => (style || "") + " " + px + "px " + XP.font;
+
+// The days an export covers, as whole weeks (week and month) or one year.
+function xrange(o){
+  if(o.kind === "w"){ const a = weekStart(o.anchor); return {from:a, to:addDays(a, 6)}; }
+  if(o.kind === "m"){ const a = o.anchor.slice(0,7); return {from:a + "-01", to:addDays(addMonths(a, 1) + "-01", -1)}; }
+  return {from:o.anchor.slice(0,4) + "-01-01", to:o.anchor.slice(0,4) + "-12-31"};
+}
+function xlabel(o){   // in the app's own words, for the sheet
+  const r = xrange(o);
+  if(o.kind === "w") return pretty(r.from) + " – " + pretty(r.to);
+  if(o.kind === "m") return MONTHS[+r.from.slice(5,7)-1] + " " + r.from.slice(0,4);
+  return r.from.slice(0,4);
+}
+function xperiod(o){  // in the export's language, for the picture
+  const r = xrange(o);
+  if(o.kind === "y") return r.from.slice(0,4);
+  if(o.kind === "m") return cap(fmt(o.lang, {month:"long", year:"numeric"}).format(D(r.from)));
+  const f = fmt(o.lang, {day:"numeric", month:"short", year:"numeric"});
+  return f.formatRange ? f.formatRange(D(r.from), D(r.to)) : f.format(D(r.from)) + " – " + f.format(D(r.to));
+}
+
+// What one day's cell says: one line per event, or the category's "free" word.
+// An event named after its own category (a shift) shows just its time.
+function xlines(o, free){
+  const c = catById(o.cat);
+  const list = S.events.filter(e => !e.del && e.date && (o.who === "all" || e.who === o.who || e.who === "ab") && (!c || e.cat === c.id));
+  return day => {
+    const evs = dayEvents(list, day);
+    if(!evs.length) return free ? [{text:free, bold:true, free:true}] : [];
+    return evs.map(x=>{
+      const ev = x.ev, own = catById(ev.cat);
+      const time = ev.from && x.s === day ? ev.from + (ev.to ? "–" + ev.to : "") : "";
+      const bare = c && own && time && ev.title.trim().toLowerCase() === own.name.trim().toLowerCase();
+      return {text:(time + " " + (bare ? "" : ev.title)).trim(), dot:o.who === "all" && ev.who !== "ab" ? person(ev.who).color : ""};
+    });
+  };
+}
+
+function wrapText(g, text, max){
+  const out = [];
+  let cur = "";
+  text.split(/\s+/).forEach(w=>{
+    const t = cur ? cur + " " + w : w;
+    if(!cur || g.measureText(t).width <= max) cur = t; else { out.push(cur); cur = w; }
+  });
+  if(cur) out.push(cur);
+  return out.map(s=>{
+    if(g.measureText(s).width <= max) return s;
+    while(s.length > 1 && g.measureText(s + "…").width > max) s = s.slice(0, -1);
+    return s + "…";
+  });
+}
+
+function picture(o, free){
+  const c = catById(o.cat);
+  const title = [c ? c.name : "", o.who !== "all" ? name(o.who) : ""].filter(Boolean).join(" · ") || "Schedule";
+  const lines = xlines(o, free), r = xrange(o);
+  // the year leaves out the "free" word: on months nobody has planned yet it would mislead
+  if(o.kind === "y") return yearPicture(o, title, xlines(o, ""), r);
+  const weeks = [];
+  for(let d = weekStart(r.from); d <= r.to; d = addDays(d, 7)) weeks.push([0,1,2,3,4,5,6].map(i=>addDays(d, i)));
+  return weeksPicture(o, title, lines, r, weeks);
+}
+
+function weeksPicture(o, title, lines, r, weeks){
+  const COLW = 210, PAD = 32, TOP = 96, HEAD = 54, DATE = 48, LH = 34, FS = 27;
+  const W = PAD*2 + COLW*7, cv = document.createElement("canvas"), g = cv.getContext("2d");
+  const names = [0,1,2,3,4,5,6].map(i=>fmt(o.lang, {weekday:"long"}).format(D(addDays("2024-01-01", i))).toLocaleUpperCase());
+  const dateF = fmt(o.lang, {day:"numeric", month:"short"});
+  // lay out first: a week's row is as tall as its busiest day
+  const rows = weeks.map(days=>{
+    const cells = days.map(d=>lines(d).flatMap(l=>{
+      g.font = xfont(FS, l.bold ? "bold" : "");
+      return wrapText(g, l.text, COLW - 24 - (l.dot ? 20 : 0)).map((t, i)=>Object.assign({}, l, {text:t, dot:i ? "" : l.dot}));
+    }));
+    return {days, cells, h:Math.max(58, Math.max(1, ...cells.map(x=>x.length)) * LH + 24)};
+  });
+  cv.width = W;
+  cv.height = TOP + HEAD + rows.reduce((s, x)=>s + DATE + x.h, 0) + PAD;
+  g.fillStyle = "#fff"; g.fillRect(0, 0, W, cv.height);
+  g.textBaseline = "middle";
+  g.fillStyle = "#1b1d21"; g.textAlign = "left"; g.font = xfont(36, "bold"); g.fillText(title, PAD, TOP/2);
+  g.fillStyle = "#555"; g.textAlign = "right"; g.font = xfont(30); g.fillText(xperiod(o), W - PAD, TOP/2);
+
+  let y = TOP;
+  g.fillStyle = XP.head[0]; g.fillRect(PAD, y, COLW*7, HEAD);
+  g.textAlign = "center"; g.font = xfont(23, "italic bold");
+  names.forEach((n, i)=>{
+    const cx = PAD + COLW*i + COLW/2, w = g.measureText(n).width;
+    g.fillStyle = XP.head[1]; g.fillText(n, cx, y + HEAD/2); g.fillRect(cx - w/2, y + HEAD/2 + 13, w, 2);
+  });
+  g.strokeStyle = "#000"; g.lineWidth = 1.5;
+  for(let i = 0; i < 7; i++) g.strokeRect(PAD + COLW*i, y, COLW, HEAD);
+  y += HEAD;
+
+  rows.forEach((row, wi)=>{
+    const [bg, fg] = XP.bands[wi % XP.bands.length];
+    row.days.forEach((d, i)=>{
+      const x = PAD + COLW*i, cx = x + COLW/2, inside = d >= r.from && d <= r.to;
+      g.fillStyle = bg; g.fillRect(x, y, COLW, DATE + row.h);
+      g.globalAlpha = inside ? 1 : .45;          // days from the next or previous month
+      g.fillStyle = fg; g.font = xfont(26); g.textAlign = "center"; g.fillText(dateF.format(D(d)), cx, y + DATE/2);
+      g.globalAlpha = 1;
+      const ls = row.cells[i], top = y + DATE + (row.h - ls.length*LH)/2 + LH/2;
+      ls.forEach((l, k)=>{
+        const ty = top + k*LH;
+        g.font = xfont(FS, l.bold ? "bold" : ""); g.fillStyle = fg;
+        if(!l.dot){ g.textAlign = "center"; g.fillText(l.text, cx, ty); return; }
+        const w = g.measureText(l.text).width, sx = cx - (w + 20)/2;
+        g.beginPath(); g.arc(sx + 6, ty, 6, 0, 2*Math.PI); g.fillStyle = l.dot; g.fill();
+        g.fillStyle = fg; g.textAlign = "left"; g.fillText(l.text, sx + 20, ty);
+      });
+      g.strokeStyle = "#000"; g.lineWidth = 1.5;
+      g.strokeRect(x, y, COLW, DATE); g.strokeRect(x, y + DATE, COLW, row.h);
+    });
+    g.lineWidth = 3; g.beginPath(); g.moveTo(PAD, y); g.lineTo(PAD + COLW*7, y); g.stroke();
+    y += DATE + row.h;
+  });
+  g.lineWidth = 3; g.strokeRect(PAD, TOP, COLW*7, y - TOP);
+  return cv;
+}
+
+function yearPicture(o, title, lines, r){
+  const PAD = 40, TOP = 116, GAP = 36, CW = 110, CH = 92, MH = 56, WH = 38, FS = 22;
+  const MW = CW*7, BH = MH + WH + CH*6, year = r.from.slice(0,4);
+  const W = PAD*2 + MW*3 + GAP*2, cv = document.createElement("canvas"), g = cv.getContext("2d");
+  cv.width = W; cv.height = TOP + BH*4 + GAP*3 + PAD;
+  g.fillStyle = "#fff"; g.fillRect(0, 0, W, cv.height);
+  g.textBaseline = "middle";
+  g.fillStyle = "#1b1d21"; g.textAlign = "left"; g.font = xfont(44, "bold"); g.fillText(title, PAD, TOP/2);
+  g.fillStyle = "#555"; g.textAlign = "right"; g.font = xfont(40); g.fillText(year, W - PAD, TOP/2);
+  const initials = [0,1,2,3,4,5,6].map(i=>fmt(o.lang, {weekday:"narrow"}).format(D(addDays("2024-01-01", i))).toLocaleUpperCase());
+  const monthF = fmt(o.lang, {month:"long"});
+
+  for(let m = 0; m < 12; m++){
+    const ox = PAD + (m % 3)*(MW + GAP), oy = TOP + Math.floor(m / 3)*(BH + GAP);
+    const [bg, fg] = XP.bands[m % XP.bands.length], first = year + "-" + pad(m+1) + "-01";
+    g.fillStyle = bg; g.fillRect(ox, oy, MW, MH);
+    g.fillStyle = fg; g.textAlign = "center"; g.font = xfont(30, "bold"); g.fillText(cap(monthF.format(D(first))), ox + MW/2, oy + MH/2);
+    g.fillStyle = XP.head[0]; g.fillRect(ox, oy + MH, MW, WH);
+    g.fillStyle = XP.head[1]; g.font = xfont(20, "italic bold");
+    initials.forEach((n, i)=>g.fillText(n, ox + CW*i + CW/2, oy + MH + WH/2));
+    const lead = (weekday(first) + 6) % 7;
+    for(let k = 0; k < 42; k++){
+      const d = addDays(first, k - lead), x = ox + (k % 7)*CW, y = oy + MH + WH + Math.floor(k / 7)*CH;
+      if(d.slice(0,7) !== first.slice(0,7)) continue;   // other months' days stay blank
+      {
+        const ls = lines(d), busy = ls.length > 0;
+        if(busy){ g.fillStyle = bg; g.fillRect(x, y, CW, CH); }
+        g.fillStyle = busy ? fg : "#666"; g.textAlign = "left"; g.font = xfont(20, busy ? "bold" : ""); g.fillText(String(+d.slice(8)), x + 7, y + 16);
+        // up to two short lines; anything beyond becomes "+n"
+        let out = [];
+        ls.forEach(l=>{ g.font = xfont(FS, l.bold ? "bold" : ""); wrapText(g, l.text, CW - 10).forEach(t=>out.push(Object.assign({}, l, {text:t}))); });
+        if(out.length > 2) out = [out[0], {text:"+" + (out.length - 1), bold:false}];
+        out.forEach((l, j)=>{
+          g.fillStyle = fg; g.textAlign = "center"; g.font = xfont(FS, l.bold ? "bold" : "");
+          g.fillText(l.text, x + CW/2, y + (out.length === 1 ? CH/2 + 12 : CH/2 + j*25));
+        });
+      }
+      g.strokeStyle = "#8a8a8a"; g.lineWidth = 1; g.strokeRect(x, y, CW, CH);
+    }
+    g.strokeStyle = "#000"; g.lineWidth = 2.5; g.strokeRect(ox, oy, MW, BH);
+  }
+  return cv;
+}
+
+function exportSheet(){
+  const c = catById(X.cat);
+  openSheet(`<h2>Export image</h2>
+    <div class="stack">
+      ${seg("xkind", [["w","Week"],["m","Month"],["y","Year"]], X.kind)}
+      <div class="xstep">
+        <button class="arrow" data-act="xstep" data-v="-1" aria-label="Earlier">‹</button>
+        <b>${xlabel(X)}</b>
+        <button class="arrow" data-act="xstep" data-v="1" aria-label="Later">›</button>
+      </div>
+      <div><label>Category</label>${seg("xcat", [["", "All"]].concat(cats().map(k=>[k.id, esc(k.name)])), X.cat)}</div>
+      <div><label>Who</label>${seg("xwho", [["all", "Both"], ["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], X.who)}</div>
+      ${c ? `<div><label>Days with nothing on show</label><input id="x-free" value="${esc(c.free || "")}" placeholder="Nothing, or a word like free, libre" autocomplete="off"></div>` : ""}
+      <div><label>Language</label>${seg("xlang", LANGS.map(l=>[l[0], l[1]]), X.lang)}</div>
+      <img id="x-prev" class="xprev" alt="Preview of the image">
+      <div class="two">
+        <button class="btn" data-act="xshare">Share</button>
+        <button class="btn ghost" data-act="xsave">Save image</button>
+      </div>
+    </div>`);
+  drawPreview();
+}
+const xfree = () => { const el = $("x-free"), c = catById(X.cat); return el ? el.value.trim() : c ? c.free || "" : ""; };
+function drawPreview(){
+  const img = $("x-prev");
+  if(img) img.src = picture(X, xfree()).toDataURL("image/jpeg", .85);
+}
+function xfile(){
+  const c = catById(X.cat), r = xrange(X);
+  const slug = s => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+  const key = X.kind === "y" ? r.from.slice(0,4) : X.kind === "m" ? r.from.slice(0,7) : r.from;
+  const fname = ["schedule", c ? slug(c.name) : "", X.who !== "all" ? slug(name(X.who)) : "", key].filter(Boolean).join("-") + ".jpg";
+  return new Promise(res=>picture(X, xfree()).toBlob(b=>res(new File([b], fname, {type:"image/jpeg"})), "image/jpeg", .92));
+}
+function saveFile(f){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(f);
+  a.download = f.name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+}
+
 /* ---------- sync through a private GitHub repository ---------- */
 // The whole calendar is one file, calendar.json, in a private repo. Each phone
 // reads it, merges record by record (newest change wins), and writes it back
@@ -613,20 +889,28 @@ function normalize(d){
     const q = d.people.find(x=>x && x.id === p.id);
     return q ? {id:p.id, name:String(q.name||""), color:/^#[0-9a-f]{6}$/i.test(q.color) ? q.color : p.color, u:+q.u||0} : p;
   });
+  if(Array.isArray(d.cats)) out.cats = d.cats.filter(c=>
+    c && typeof c.id === "string" && (c.del || typeof c.name === "string"));
   if(Array.isArray(d.events)) out.events = d.events.filter(e=>
     e && typeof e.id === "string" && (e.del || (/^\d{4}-\d{2}-\d{2}$/.test(e.date) && typeof e.title === "string")));
   return out;
 }
+function mergeList(a, b){
+  const m = new Map();
+  a.concat(b).forEach(e=>{ const c = m.get(e.id); if(!c || newer(e, c)) m.set(e.id, e); });
+  return [...m.values()];
+}
 function merge(x, y){
   const people = x.people.map(p=>{ const q = y.people.find(o=>o.id === p.id); return q && newer(q, p) ? q : p; });
-  const m = new Map();
-  x.events.concat(y.events).forEach(e=>{ const c = m.get(e.id); if(!c || newer(e, c)) m.set(e.id, e); });
-  return {people, events:[...m.values()]};
+  return {people, cats:mergeList(x.cats, y.cats), events:mergeList(x.events, y.events)};
 }
 // One event per line, sorted, so the repo's history shows clean one-line diffs.
+// Before v3 the app dropped top-level keys it didn't know; "cats" is safe because
+// no older copy was ever in use, but keep that in mind before adding another.
+const byId = list => list.slice().sort((p,q)=> p.id < q.id ? -1 : p.id > q.id ? 1 : 0).map(flat);
 function serialize(d){
-  const evs = d.events.slice().sort((p,q)=> p.id < q.id ? -1 : p.id > q.id ? 1 : 0).map(flat);
-  return '{"app":"schedule","v":1,\n"people":[' + d.people.map(flat).join(",") + '],\n"events":[\n' + evs.join(",\n") + "\n]}\n";
+  return '{"app":"schedule","v":1,\n"people":[' + d.people.map(flat).join(",") + '],\n"cats":[' + byId(d.cats).join(",")
+    + '],\n"events":[\n' + byId(d.events).join(",\n") + "\n]}\n";
 }
 function commitMessage(before, after){
   const old = new Map((before ? before.events : []).map(e=>[e.id, e]));
@@ -637,6 +921,7 @@ function commitMessage(before, after){
     else if(o.u !== e.u && !o.del) bits.push(e.del ? "- " + o.title : "~ " + e.title);
   });
   if(before && after.people.some(p=>flat(p) !== flat(before.people.find(x=>x.id === p.id) || {}))) bits.push("names/colours");
+  if(before && byId(after.cats).join() !== byId(before.cats).join()) bits.push("categories");
   const who = L.me ? name(L.me) : "Phone";
   return who + ": " + (bits.slice(0,4).join(", ") + (bits.length > 4 ? " and " + (bits.length-4) + " more" : "") || "sync");
 }
@@ -743,6 +1028,7 @@ document.body.addEventListener("click", e=>{
   if(a === "new") eventSheet(null, d || (L.tab === "month" ? selDay : today()));
   else if(a === "edit") eventSheet(id, d);
   else if(a === "filter"){ L.filter = v; saveLocal(); render(); }
+  else if(a === "catf"){ L.cat = v; saveLocal(); render(); }
   else if(a === "more"){ ahead += 90; render(); }
   else if(a === "pickDay"){
     selDay = d;
@@ -761,7 +1047,43 @@ document.body.addEventListener("click", e=>{
     wrap.querySelectorAll(".pill").forEach(x=>x.classList.toggle("on", x === b));
     if(wrap.dataset.seg === "repeat") $("untilrow").hidden = !v;
     if(wrap.dataset.seg === "me" && $("s-status")){ L.me = v; saveLocal(); render(); }
+    const k = wrap.dataset.seg;
+    if(k === "xkind"){ X.kind = v; L.xkind = v; saveLocal(); exportSheet(); }
+    else if(k === "xcat"){ X.cat = v; exportSheet(); }
+    else if(k === "xwho"){ X.who = v; drawPreview(); }
+    else if(k === "xlang"){ X.lang = v; L.lang = v; saveLocal(); drawPreview(); }
   }
+  else if(a === "catNew"){ $("newcat").hidden = false; $("f-newcat").focus(); }
+  else if(a === "catAdd") addCatInline();
+  else if(a === "catCreate"){
+    const c = {id:uid(), name:"New category", free:"", u:Date.now()};
+    S.cats.push(c); changed(); settingsSheet();
+    const el = $("s-cat-" + c.id); if(el){ el.focus(); el.select(); }
+  }
+  else if(a === "catDel"){
+    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Delete"; b.classList.add("warn"); return; }
+    const old = S.cats.find(c=>c.id === id); if(!old) return;
+    // its events keep their place in the calendar, just without a category
+    upsert({id, del:1, u:stamp(old)}, "cats");
+    if(L.cat === id) L.cat = "";
+    changed(); settingsSheet();
+  }
+  else if(a === "xopen"){
+    X = {kind:L.xkind || "m", anchor:L.tab === "month" ? (selDay || month + "-01") : today(),
+         cat:catById(L.cat) ? L.cat : "", who:L.filter, lang:L.lang || "en"};
+    exportSheet();
+  }
+  else if(a === "xstep"){
+    const n = +v;
+    X.anchor = X.kind === "w" ? addDays(weekStart(X.anchor), 7*n)
+      : X.kind === "m" ? addMonths(X.anchor.slice(0,7), n) + "-01" : (+X.anchor.slice(0,4) + n) + "-01-01";
+    exportSheet();
+  }
+  else if(a === "xsave") xfile().then(saveFile);
+  else if(a === "xshare") xfile().then(f=>{
+    if(navigator.canShare && navigator.canShare({files:[f]})) navigator.share({files:[f], title:f.name}).catch(()=>{});
+    else saveFile(f);
+  });
   else if(a === "clearTime"){ $("f-from").value = ""; $("f-to").value = ""; }
   else if(a === "saveEv") saveEvent(id);
   else if(a === "skipDay"){
@@ -844,9 +1166,27 @@ document.body.addEventListener("change", e=>{
     const p = person(m[1]), n = e.target.value.trim();
     if(n !== p.name){ Object.assign(p, {name:n, u:stamp(p)}); changed(); }
   }
+  const c = catById(e.target.dataset.cat);
+  if(c){
+    const n = e.target.value.trim(), was = c.name;
+    if(!n){ e.target.value = was; return; }
+    if(n === was) return;
+    Object.assign(c, {name:n, u:stamp(c)});
+    // shifts saved without a title carry the category's name: rename them along with it
+    S.events.forEach((ev, i)=>{
+      if(!ev.del && ev.cat === c.id && ev.title === was) S.events[i] = Object.assign({}, ev, {title:n, by:L.me, u:stamp(ev)});
+    });
+    changed();
+  }
+  if(e.target.id === "x-free" && X){
+    const k = catById(X.cat), f = e.target.value.trim();
+    if(k && f !== (k.free || "")){ Object.assign(k, {free:f, u:stamp(k)}); changed(); }
+  }
 });
+let previewT = null;
 document.body.addEventListener("input", e=>{
   e.target.classList.remove("bad");
+  if(e.target.id === "x-free"){ clearTimeout(previewT); previewT = setTimeout(drawPreview, 250); }
   // keep the "whose phone" choice labelled with the names as they're typed
   const m = e.target.id.match(/^w-([ab])$/);
   if(m){
@@ -856,6 +1196,7 @@ document.body.addEventListener("input", e=>{
 });
 document.body.addEventListener("keydown", e=>{
   if(e.key === "Enter" && e.target.id === "f-title"){ e.preventDefault(); saveEvent(box.querySelector('[data-act="saveEv"]').dataset.id); }
+  if(e.key === "Enter" && e.target.id === "f-newcat"){ e.preventDefault(); addCatInline(); }
 });
 
 // swipe the month grid sideways to change month
