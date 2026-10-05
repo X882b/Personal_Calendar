@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1b1d21">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Schedule</title>
+<style>
+:root{
+  --steel:#1b1d21;
+  --raised:#26292f;
+  --edge:#343841;
+  --chalk:#e8e6e1;
+  --dim:#8d919b;
+  --blue:#2f6fd0;
+  --red:#c8352c;
+  --yellow:#d9b23c;
+  --green:#3f9160;
+  --num:"Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  /* person colours; overwritten from the data on every render */
+  --pa:#3fb0e8;
+  --pb:#ef6f8e;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;min-height:100%}
+body{
+  background:var(--steel);color:var(--chalk);
+  font:400 16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  overscroll-behavior:none;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer;padding:0}
+input,textarea{
+  background:var(--steel);border:1px solid var(--edge);border-radius:6px;
+  padding:10px;width:100%;resize:none;
+}
+/* Android draws empty date/time fields shorter than text fields */
+input[type=date],input[type=time]{min-height:46px;-webkit-appearance:none;appearance:none;text-align:left}
+input.bad{border-color:var(--red)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+h2{font:600 20px/1.2 system-ui;margin:0 0 2px}
+h3{font:600 15px/1.2 system-ui;margin:0}
+hr{border:none;border-top:1px solid var(--edge);margin:8px 0}
+.muted{color:var(--dim);font-size:13px}
+.grow{flex:1;min-width:0}
+
+/* shell */
+#top{
+  display:flex;align-items:center;gap:8px;
+  padding:calc(env(safe-area-inset-top) + 14px) 12px 12px 16px;
+  border-bottom:1px solid var(--edge);position:sticky;top:0;background:var(--steel);z-index:5;
+}
+#top .day{color:var(--dim);font-size:13px}
+#sync{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);padding:8px 6px;white-space:nowrap}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--dim);flex:none}
+.sdot.ok{background:var(--green)}
+.sdot.busy{background:var(--blue)}
+.sdot.wait{background:var(--yellow)}
+.sdot.err{background:var(--red)}
+#gear{font-size:20px;padding:6px 8px;color:var(--dim)}
+main{padding:12px 16px 150px;max-width:640px;margin:0 auto}
+nav{
+  position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 1fr;
+  background:var(--raised);border-top:1px solid var(--edge);
+  padding-bottom:env(safe-area-inset-bottom);z-index:6;
+}
+nav button{padding:11px 4px 13px;color:var(--dim);font-size:12px;display:grid;gap:3px;justify-items:center}
+nav button b{font-size:17px;font-weight:400;line-height:1}
+nav button.on{color:var(--chalk);box-shadow:inset 0 2px 0 var(--blue)}
+#add{
+  position:fixed;right:16px;z-index:7;bottom:calc(env(safe-area-inset-bottom) + 74px);
+  border-radius:999px;padding:14px 22px;box-shadow:0 6px 22px rgba(0,0,0,.5);
+}
+
+/* controls */
+.btn{background:var(--blue);color:#fff;border-radius:8px;padding:12px 16px;font-weight:600;text-align:center}
+.btn.ghost{background:none;border:1px solid var(--edge);color:var(--chalk);font-weight:500}
+.btn.warn{background:var(--red);border-color:var(--red);color:#fff}
+.btn.wide{display:block;width:100%}
+.btn:active{filter:brightness(.9)}
+.stack{display:grid;gap:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
+.seg,.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips{margin:2px 0 14px}
+.pill{
+  border:1px solid var(--edge);border-radius:999px;padding:7px 13px;font-size:14px;color:var(--dim);
+  display:inline-flex;align-items:center;gap:7px;
+}
+.pill.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.pill.on.a{background:var(--pa);border-color:var(--pa);color:#111316}
+.pill.on.b{background:var(--pb);border-color:var(--pb);color:#111316}
+.pill.on.ab{background:linear-gradient(90deg,var(--pa) 50%,var(--pb) 50%);border-color:var(--edge);color:#111316}
+.pill.on .dot{box-shadow:0 0 0 1.5px #111316}
+.seg.bad .pill{border-color:var(--red)}
+.linkbtn{color:var(--dim);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+.empty{text-align:center;color:var(--dim);padding:22px 12px}
+
+/* person colour marks */
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.dot.a,.bar.a{background:var(--pa)}
+.dot.b,.bar.b{background:var(--pb)}
+.dot.ab{background:linear-gradient(90deg,var(--pa) 50%,var(--pb) 50%)}
+.bar.ab{background:linear-gradient(var(--pa) 50%,var(--pb) 50%)}
+.who{font-weight:600}
+.who.a{color:var(--pa)}
+.who.b{color:var(--pb)}
+
+/* day lists */
+.dayb{margin-bottom:16px}
+.dayh{display:flex;align-items:baseline;gap:10px;padding:8px 0 6px;border-bottom:1px solid var(--edge)}
+.dayh h3{font-size:17px}
+.dayh .muted{flex:1}
+.dayh .plus{color:var(--dim);font-size:24px;line-height:1;padding:0 2px 0 14px;align-self:center}
+.dayb.free{margin-bottom:2px}
+.dayb.free .dayh{border-bottom:none;padding:6px 0}
+.dayb.free h3{color:var(--dim);font-weight:500}
+.dayb.today .dayh h3{color:#fff}
+.dayb.today .dayh{border-bottom-color:var(--blue)}
+.ev{
+  display:grid;grid-template-columns:48px 4px 1fr;gap:12px;
+  width:100%;text-align:left;padding:10px 0;
+}
+.ev+.ev{border-top:1px solid #2a2d33}
+.tm{font-family:var(--num);font-weight:700;font-size:16px;line-height:1.25;font-variant-numeric:tabular-nums}
+.tm small{display:block;font-weight:400;color:var(--dim);font-size:13px}
+.tm.all{font:400 12px/1.3 system-ui;color:var(--dim);padding-top:3px}
+.bar{border-radius:2px;min-height:22px}
+.et{display:block;font-size:16px;font-weight:500;line-height:1.3;overflow-wrap:anywhere}
+.es{display:block;font-size:13px;color:var(--dim);margin-top:2px;overflow-wrap:anywhere}
+.ev.past{opacity:.45}
+
+/* month */
+.mhead{display:flex;align-items:center;gap:6px;margin:0 0 8px}
+.mhead h2{flex:1;text-align:center;margin:0}
+.arrow{font-size:26px;line-height:1;color:var(--chalk);padding:4px 14px 8px}
+.mhead .pill{padding:5px 11px;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;touch-action:pan-y}
+.wd{font-size:11px;color:var(--dim);text-align:center;padding:0 0 4px}
+.cell{
+  min-height:52px;background:var(--raised);border:1.5px solid transparent;border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 2px 6px;min-width:0;
+}
+.cell.out{background:none}
+.cell.out .dn{color:#5d616b}
+.cell.gone .dn{color:var(--dim)}
+.cell .dn{
+  font-family:var(--num);font-weight:700;font-size:15px;line-height:24px;
+  min-width:26px;height:24px;border-radius:12px;text-align:center;
+}
+.cell.now .dn{background:var(--blue);color:#fff}
+.cell.sel{border-color:var(--chalk)}
+.dots{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;align-items:center;max-width:100%}
+.dots .dot{width:7px;height:7px}
+.dots small{font-size:10px;color:var(--dim);line-height:7px}
+.mt{display:none}
+.selday{margin-top:18px}
+
+/* sheet */
+#sheet{position:fixed;inset:0;z-index:15;display:none;background:rgba(0,0,0,.6)}
+#sheet.on{display:block}
+#sheetbox{
+  position:absolute;left:0;right:0;bottom:0;background:var(--raised);
+  border-top:1px solid var(--edge);border-radius:16px 16px 0 0;
+  padding:18px 16px calc(env(safe-area-inset-bottom) + 28px);
+  max-height:90vh;max-height:90dvh;overflow:auto;
+}
+#sheetbox h2{margin-bottom:14px}
+#sheetbox input{background:var(--steel)}
+.sws{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.sw{width:30px;height:30px;border-radius:50%;border:2px solid transparent}
+.sw.on{border-color:var(--chalk);box-shadow:inset 0 0 0 3px var(--raised)}
+details summary{cursor:pointer;color:var(--dim);font-size:14px;padding:4px 0}
+details ol{margin:8px 0 0;padding-left:20px;font-size:14px;color:var(--chalk)}
+details li+li{margin-top:6px}
+code{font-size:13px;background:var(--steel);border:1px solid var(--edge);border-radius:4px;padding:0 4px}
+.foot{font-size:12px;color:var(--dim);text-align:center}
+@media(prefers-reduced-motion:no-preference){
+  #sheetbox{animation:up .18s ease-out}
+  @keyframes up{from{transform:translateY(14px);opacity:.4}}
+}
+@media (hover:hover){
+  .btn:hover{filter:brightness(1.12)}
+  .pill:hover{border-color:var(--dim)}
+  .ev:hover .et{text-decoration:underline;text-underline-offset:3px}
+  .cell:hover{border-color:var(--edge)}
+  nav button:hover{color:var(--chalk)}
+}
+/* wide screens: room for titles in the month grid, centred dialogs */
+@media (min-width:700px){
+  .cell{min-height:96px;align-items:stretch;padding:4px 4px 6px}
+  .cell .dn{align-self:flex-start}
+  .cell .dots{display:none}
+  .mt{
+    display:block;font-size:12px;line-height:1.3;padding-left:5px;border-left:3px solid var(--pa);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;
+  }
+  .mt.b{border-left-color:var(--pb)}
+  .mt.ab{border-image:linear-gradient(var(--pa) 50%,var(--pb) 50%) 1}
+  .mt.more{border:none;color:var(--dim);padding-left:0}
+  main{max-width:900px}
+  #add{right:max(16px,calc(50% - 450px));bottom:84px}
+  #sheetbox{
+    top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);
+    width:min(540px,92vw);max-height:86vh;max-height:86dvh;border:1px solid var(--edge);border-radius:14px;padding:22px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="grow">
+    <h2 id="title">Upcoming</h2>
+    <div class="day" id="subtitle"></div>
+  </div>
+  <button id="sync" data-act="settings" aria-label="Sync status"></button>
+  <button id="gear" data-act="settings" aria-label="Settings">⚙</button>
+</header>
+
+<main id="view"></main>
+
+<button id="add" class="btn" data-act="new">+ Event</button>
+
+<nav>
+  <button data-tab="up" class="on"><b>☰</b>Upcoming</button>
+  <button data-tab="month"><b>▦</b>Month</button>
+</nav>
+
+<div id="sheet"><div id="sheetbox"></div></div>
+
+<script>
+"use strict";
+
+/* ---------- storage ---------- */
+// The calendar itself (shared, synced) and this phone's own settings live apart:
+// the token and "whose phone is this" must never travel to the other phone.
+const DOC_KEY = "schedule_doc", LOCAL_KEY = "schedule_local";
+function readJSON(k){
+  try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; }catch(e){ return null; }
+}
+function writeJSON(k, v){
+  try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ console.warn("save failed", e); }
+}
+
+/* ---------- state ---------- */
+const COLORS = ["#3fb0e8","#ef6f8e","#4cc38a","#e9a23b","#a487f0","#2fc4c4","#f07a4b","#c6cf4a"];
+const PEOPLE = ["a","b"];
+const blankDoc = () => ({
+  people:[{id:"a", name:"", color:COLORS[0], u:0}, {id:"b", name:"", color:COLORS[1], u:0}],
+  events:[]
+});
+// S is shared between the phones. Every record carries u (last change, ms);
+// on sync the newer copy of each record wins. Deletes leave a tombstone.
+let S = blankDoc();
+// L belongs to this phone only.
+let L = {me:"", filter:"all", tab:"up", repo:"", token:"", dirty:false, last:0};
+let month = "", selDay = "", ahead = 60, edits = 0;
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const person = id => S.people.find(p=>p.id === id) || blankDoc().people[id === "b" ? 1 : 0];
+const name = id => person(id).name || (id === "b" ? "Person 2" : "Person 1");
+const stamp = old => Math.max(Date.now(), old && old.u ? old.u + 1 : 0);
+
+function saveDoc(){ writeJSON(DOC_KEY, S); }
+function saveLocal(){ writeJSON(LOCAL_KEY, L); }
+// Every change to the shared calendar goes through here.
+function changed(){
+  edits++; L.dirty = true;
+  saveDoc(); saveLocal(); render(); scheduleSync(1200);
+}
+function upsert(rec){
+  const i = S.events.findIndex(e=>e.id === rec.id);
+  if(i < 0) S.events.push(rec); else S.events[i] = rec;
+}
+
+/* ---------- date helpers ---------- */
+// Dates are "YYYY-MM-DD" strings. Day arithmetic runs in UTC so DST never shifts a day.
+const pad = n => String(n).padStart(2,"0");
+const iso = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today = () => iso(new Date());
+const nowHM = () => { const d = new Date(); return pad(d.getHours())+":"+pad(d.getMinutes()); };
+const D = s => { const p = s.split("-"); return new Date(Date.UTC(+p[0], p[1]-1, +p[2])); };
+const ymd = t => t.getUTCFullYear()+"-"+pad(t.getUTCMonth()+1)+"-"+pad(t.getUTCDate());
+const addDays = (s, n) => { const t = D(s); t.setUTCDate(t.getUTCDate()+n); return ymd(t); };
+const diffDays = (a, b) => Math.round((D(b) - D(a)) / 864e5);
+const weekday = s => D(s).getUTCDay();
+const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const mon = s => MONTHS[+s.slice(5,7)-1].slice(0,3);
+const yearTail = s => s.slice(0,4) === today().slice(0,4) ? "" : " " + s.slice(0,4);
+const pretty = s => SHORT[weekday(s)]+" "+(+s.slice(8))+" "+mon(s)+yearTail(s);
+const longDay = s => DAYS[weekday(s)]+" "+(+s.slice(8))+" "+MONTHS[+s.slice(5,7)-1]+yearTail(s);
+const hm = ms => { const d = new Date(ms); return pad(d.getHours())+":"+pad(d.getMinutes()); };
+function addMonths(ym, n){
+  const t = new Date(Date.UTC(+ym.slice(0,4), +ym.slice(5,7)-1+n, 1));
+  return ymd(t).slice(0,7);
+}
+
+/* ---------- which events fall on a day ---------- */
+const REPEATS = [["","No"],["w","Weekly"],["2w","Every 2 weeks"],["m","Monthly"],["y","Yearly"]];
+const REPEAT_TEXT = {w:"every week", "2w":"every 2 weeks", m:"every month", y:"every year"};
+const spanOf = ev => ev.last && ev.last > ev.date ? diffDays(ev.date, ev.last) : 0;
+function startsOn(ev, s){
+  const n = diffDays(ev.date, s);
+  if(n < 0) return false;
+  if(ev.repeat === "w")  return n % 7 === 0;
+  if(ev.repeat === "2w") return n % 14 === 0;
+  if(ev.repeat === "m")  return s.slice(8) === ev.date.slice(8);
+  if(ev.repeat === "y")  return s.slice(5) === ev.date.slice(5);
+  return n === 0;
+}
+// The first day of the occurrence that covers `day`, or "" if the event isn't on it.
+// A multi-day event covers its start day plus `span` more days, every time it repeats.
+function occStart(ev, day){
+  const span = spanOf(ev);
+  for(let k = 0; k <= span; k++){
+    const s = k ? addDays(day, -k) : day;
+    if(s < ev.date) return "";
+    if(ev.repeat && ev.until && s > ev.until) continue;
+    if(ev.skip && ev.skip.includes(s)) continue;
+    if(startsOn(ev, s)) return s;
+  }
+  return "";
+}
+function visible(){
+  return S.events.filter(e => !e.del && e.date && (L.filter === "all" || e.who === L.filter || e.who === "ab"));
+}
+// [{ev, s}] for one day: all-day and continuing trips first, then by start time.
+function dayEvents(list, day){
+  const out = [];
+  list.forEach(ev=>{ const s = occStart(ev, day); if(s) out.push({ev, s}); });
+  const key = o => (o.ev.from && o.s === day ? o.ev.from : "") + " " + o.ev.title.toLowerCase();
+  return out.sort((x,y)=> key(x) < key(y) ? -1 : key(x) > key(y) ? 1 : 0);
+}
+
+/* ---------- views ---------- */
+const view = document.getElementById("view");
+const T = document.getElementById("title");
+const SUB = document.getElementById("subtitle");
+
+function render(){
+  document.documentElement.style.setProperty("--pa", person("a").color);
+  document.documentElement.style.setProperty("--pb", person("b").color);
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on", b.dataset.tab === L.tab));
+  SUB.textContent = longDay(today());
+  if(L.tab === "month") renderMonth(); else renderUp();
+  drawSync();
+}
+
+function whoText(w){
+  if(w === "ab") return `<b class="who a">${esc(name("a"))}</b> &amp; <b class="who b">${esc(name("b"))}</b>`;
+  return `<b class="who ${w}">${esc(name(w))}</b>`;
+}
+function evRow(o, day){
+  const ev = o.ev, span = spanOf(ev), first = o.s === day;
+  const timed = ev.from && first;
+  const bits = [whoText(ev.who)];
+  if(span) bits.push("day " + (diffDays(o.s, day)+1) + " of " + (span+1));
+  if(ev.repeat) bits.push(REPEAT_TEXT[ev.repeat] || "");
+  if(ev.note) bits.push(esc(ev.note.split("\n")[0]));
+  const now = today();
+  const past = day < now || (day === now && timed && (ev.to && ev.to > ev.from ? ev.to : ev.from) < nowHM());
+  return `<button class="ev ${past ? "past" : ""}" data-act="edit" data-id="${ev.id}" data-d="${o.s}">
+    ${timed
+      ? `<span class="tm">${ev.from}${ev.to ? `<small>${ev.to}</small>` : ""}</span>`
+      : `<span class="tm all">${span && !first ? "cont." : "all day"}</span>`}
+    <i class="bar ${ev.who}"></i>
+    <span><span class="et">${esc(ev.title)}</span><span class="es">${bits.join(" · ")}</span></span>
+  </button>`;
+}
+function chips(){
+  const one = (v, t, cls) => `<button class="pill ${cls} ${L.filter === v ? "on" : ""}" data-act="filter" data-v="${v}">${t}</button>`;
+  return `<div class="chips">
+    ${one("all", "All", "")}
+    ${PEOPLE.map(p=>one(p, `<i class="dot ${p}"></i>${esc(name(p))}`, p)).join("")}
+  </div>`;
+}
+
+/* --- Upcoming: the next seven days always, after that only days with something on --- */
+function renderUp(){
+  T.textContent = "Upcoming";
+  const list = visible(), start = today();
+  let html = chips(), later = 0;
+  for(let i = 0; i < ahead; i++){
+    const d = addDays(start, i), evs = dayEvents(list, d);
+    if(i >= 7 && !evs.length) continue;
+    if(i >= 7) later++;
+    const head = i === 0 ? "Today" : i === 1 ? "Tomorrow" : i < 7 ? DAYS[weekday(d)] : pretty(d);
+    const side = i < 7 ? (+d.slice(8))+" "+mon(d) : i < 14 ? "in "+i+" days" : "in "+Math.round(i/7)+" weeks";
+    html += `<section class="dayb ${i === 0 ? "today" : ""} ${evs.length ? "" : "free"}">
+      <div class="dayh">
+        <h3>${head}</h3><span class="muted">${side}${evs.length ? "" : " · free"}</span>
+        <button class="plus" data-act="new" data-d="${d}" aria-label="Add on ${pretty(d)}">+</button>
+      </div>
+      ${evs.map(o=>evRow(o, d)).join("")}
+    </section>`;
+  }
+  if(!list.length) html += `<div class="empty">Nothing planned yet.<br>Tap <b>+ Event</b> to add the first one.</div>`;
+  else if(!later) html += `<div class="empty">Nothing else in the next ${ahead} days.</div>`;
+  html += `<button class="btn ghost wide" data-act="more">Look further ahead</button>`;
+  view.innerHTML = html;
+}
+
+/* --- Month: grid with a dot per event, the chosen day listed underneath --- */
+function renderMonth(){
+  T.textContent = "Month";
+  if(!month) month = today().slice(0,7);
+  if(!selDay || selDay.slice(0,7) !== month) selDay = today().slice(0,7) === month ? today() : month+"-01";
+  const list = visible(), first = month+"-01", now = today();
+  const lead = (weekday(first) + 6) % 7;          // weeks start on Monday
+  const len = diffDays(first, addMonths(month, 1)+"-01");
+  const cells = Math.ceil((lead + len) / 7) * 7;
+  let grid = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(w=>`<div class="wd">${w}</div>`).join("");
+  for(let i = 0; i < cells; i++){
+    const d = addDays(first, i - lead), evs = dayEvents(list, d);
+    const cls = [d.slice(0,7) !== month ? "out" : "", d === now ? "now" : "", d === selDay ? "sel" : "", d < now ? "gone" : ""].join(" ");
+    const dots = evs.slice(0,4).map(o=>`<i class="dot ${o.ev.who}"></i>`).join("") + (evs.length > 4 ? `<small>+</small>` : "");
+    const titles = evs.slice(0,3).map(o=>`<span class="mt ${o.ev.who}">${o.ev.from && o.s === d ? o.ev.from+" " : ""}${esc(o.ev.title)}</span>`).join("")
+      + (evs.length > 3 ? `<span class="mt more">+${evs.length-3} more</span>` : "");
+    grid += `<button class="cell ${cls}" data-act="pickDay" data-d="${d}" aria-label="${longDay(d)}">
+      <span class="dn">${+d.slice(8)}</span><span class="dots">${dots}</span>${titles}
+    </button>`;
+  }
+  const evs = dayEvents(list, selDay);
+  view.innerHTML = `${chips()}
+    <div class="mhead">
+      <button class="arrow" data-act="month" data-v="-1" aria-label="Previous month">‹</button>
+      <h2>${MONTHS[+month.slice(5)-1]} ${month.slice(0,4)}</h2>
+      ${month !== now.slice(0,7) ? `<button class="pill" data-act="month" data-v="0">Today</button>` : ""}
+      <button class="arrow" data-act="month" data-v="1" aria-label="Next month">›</button>
+    </div>
+    <div class="grid">${grid}</div>
+    <section class="dayb selday">
+      <div class="dayh">
+        <h3>${longDay(selDay)}</h3><span class="muted">${selDay === now ? "today" : ""}</span>
+        <button class="plus" data-act="new" data-d="${selDay}" aria-label="Add on ${pretty(selDay)}">+</button>
+      </div>
+      ${evs.length ? evs.map(o=>evRow(o, selDay)).join("") : `<div class="empty">Free</div>`}
+    </section>`;
+}
+
+/* ---------- sheets (forms) ---------- */
+const sheet = document.getElementById("sheet");
+const box = document.getElementById("sheetbox");
+// Opening a sheet adds a history entry, so Android's back button closes the
+// sheet instead of leaving the app.
+function openSheet(html){
+  const redraw = sheet.classList.contains("on"), y = box.scrollTop;
+  box.innerHTML = html;
+  box.scrollTop = redraw ? y : 0;   // redrawing the same sheet keeps its place
+  if(!redraw){ sheet.classList.add("on"); history.pushState({sheet:1}, ""); }
+}
+function hideSheet(){ sheet.classList.remove("on"); box.innerHTML = ""; }
+function closeSheet(){
+  if(!sheet.classList.contains("on")) return;
+  hideSheet();
+  if(history.state && history.state.sheet) history.back();
+}
+window.addEventListener("popstate", ()=>{ if(sheet.classList.contains("on")) hideSheet(); });
+sheet.addEventListener("click", e=>{ if(e.target === sheet) closeSheet(); });
+
+const $ = id => document.getElementById(id);
+const val = id => { const el = $(id); return el ? el.value : ""; };
+function seg(key, options, value){
+  return `<div class="seg" data-seg="${key}" data-val="${value}">${options.map(([v, t, cls])=>
+    `<button class="pill ${cls||""} ${v === value ? "on" : ""}" data-act="seg" data-v="${v}">${t}</button>`).join("")}</div>`;
+}
+const segVal = key => { const el = box.querySelector(`[data-seg="${key}"]`); return el ? el.dataset.val : ""; };
+const whoOptions = () => [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"], ["ab", "Both", "ab"]];
+
+function eventSheet(id, day){
+  const old = id ? S.events.find(e=>e.id === id) : null;
+  const ev = old || {title:"", who:L.me || "a", date:day || today(), last:"", from:"", to:"", repeat:"", until:"", note:""};
+  const occ = day || ev.date;
+  openSheet(`<h2>${old ? "Edit" : "New event"}</h2>
+    <div class="stack">
+      <div><label>What</label><input id="f-title" value="${esc(ev.title)}" placeholder="Dentist, dinner, trip…" autocomplete="off" enterkeyhint="done"></div>
+      <div><label>Who</label>${seg("who", whoOptions(), ev.who)}</div>
+      <div class="two">
+        <div><label>Day</label><input id="f-date" type="date" value="${ev.date}"></div>
+        <div><label>Last day (trips)</label><input id="f-last" type="date" value="${ev.last||""}"></div>
+      </div>
+      <div class="two">
+        <div><label>From</label><input id="f-from" type="time" value="${ev.from||""}"></div>
+        <div><label>To</label><input id="f-to" type="time" value="${ev.to||""}"></div>
+      </div>
+      <div class="muted">No time means all day. <button class="linkbtn" data-act="clearTime">Clear times</button></div>
+      <div><label>Repeat</label>${seg("repeat", REPEATS, ev.repeat||"")}</div>
+      <div id="untilrow" ${ev.repeat ? "" : "hidden"}><label>Repeat until (optional)</label><input id="f-until" type="date" value="${ev.until||""}"></div>
+      <div><label>Note</label><textarea id="f-note" rows="2" placeholder="Optional">${esc(ev.note||"")}</textarea></div>
+      <button class="btn wide" data-act="saveEv" data-id="${old ? old.id : ""}">Save</button>
+      ${old && old.repeat ? `<div class="two">
+          <button class="btn ghost" data-act="skipDay" data-id="${old.id}" data-d="${occ}">Remove ${pretty(occ)} only</button>
+          <button class="btn ghost" data-act="delEv" data-id="${old.id}">Delete every time</button>
+        </div>`
+      : old ? `<button class="btn ghost wide" data-act="delEv" data-id="${old.id}">Delete</button>` : ""}
+      ${old && old.by ? `<div class="foot">Last changed by ${esc(name(old.by))}, ${pretty(iso(new Date(old.u)))} ${hm(old.u)}</div>` : ""}
+    </div>`);
+  if(!old) setTimeout(()=>{ const t = $("f-title"); if(t) t.focus(); }, 60);
+}
+
+function saveEvent(id){
+  const title = val("f-title").trim();
+  if(!title){ const t = $("f-title"); t.classList.add("bad"); t.focus(); return; }
+  const date = val("f-date") || today();
+  let last = val("f-last"), from = val("f-from"), to = val("f-to");
+  if(last <= date) last = "";
+  if(!from && to){ from = to; to = ""; }
+  const repeat = segVal("repeat");
+  const until = repeat && val("f-until") >= date ? val("f-until") : "";
+  const old = id ? S.events.find(e=>e.id === id) : null;
+  // keep fields this version doesn't know about, in case a newer copy wrote them
+  upsert(Object.assign({}, old || {skip:[]}, {
+    id: old ? old.id : uid(), title, who: segVal("who") || "a", date, last, from, to,
+    repeat, until, note: val("f-note").trim(), by: L.me, u: stamp(old)
+  }));
+  closeSheet(); changed();
+}
+
+function welcomeSheet(){
+  openSheet(`<h2>Welcome</h2>
+    <div class="stack">
+      <div class="muted">A calendar for two. Each of you gets a colour, and everything you add shows up on both phones once sharing is on.</div>
+      <div><label>First person</label><input id="w-a" value="${esc(person("a").name)}" placeholder="Name" autocomplete="off"></div>
+      <div><label>Second person</label><input id="w-b" value="${esc(person("b").name)}" placeholder="Name" autocomplete="off"></div>
+      <div><label>Whose phone is this?</label>${seg("me", [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], L.me)}</div>
+      <button class="btn wide" data-act="welcomeDone">Start</button>
+    </div>`);
+}
+
+function syncDetail(){
+  if(SY.kind === "off") return "Everything is saved on this phone only.";
+  if(SY.kind === "busy") return "Syncing…";
+  if(SY.kind === "wait") return "No connection. Changes are kept on this phone and go out when it's back.";
+  if(SY.kind === "err") return SY.msg;
+  return "Shared through " + L.repo + "." + (L.last ? " Last synced " + hm(L.last) + "." : "");
+}
+function settingsSheet(){
+  const keep = {repo: val("f-repo") || L.repo, token: val("f-token")};
+  const linked = !!(L.repo && L.token);
+  openSheet(`<h2>Settings</h2>
+    <div class="stack">
+      <h3>People</h3>
+      ${PEOPLE.map(p=>`<div>
+        <input id="s-name-${p}" value="${esc(person(p).name)}" placeholder="${p === "a" ? "First" : "Second"} person's name" autocomplete="off">
+        <div class="sws">${COLORS.map(c=>`<button class="sw ${c === person(p).color ? "on" : ""}" style="background:${c}" data-act="color" data-p="${p}" data-v="${c}" aria-label="Colour ${c}"></button>`).join("")}</div>
+      </div>`).join("")}
+      <div><label>This phone belongs to</label>${seg("me", [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], L.me)}</div>
+      <hr>
+      <h3>Sharing between phones</h3>
+      <div class="muted" id="s-status">${esc(syncDetail())}</div>
+      ${linked ? `<div class="two">
+          <button class="btn" data-act="syncNow">Sync now</button>
+          <button class="btn ghost" data-act="shareSetup">Set up other phone</button>
+        </div>
+        <div class="muted">"Set up other phone" makes a link that connects the other phone in one tap. It contains the access token, so send it only to each other.</div>
+        ${/Android/i.test(navigator.userAgent) ? `<button class="btn ghost wide" data-act="widget">Connect the phone widget</button>
+        <div class="muted">Opens the Schedule widget app already connected. Install that app first (see the README).</div>` : ""}
+        <button class="linkbtn" data-act="unlink">Disconnect this phone</button>`
+      : `<details>
+          <summary>How to turn sharing on</summary>
+          <ol>
+            <li>On github.com, create a new <b>private</b> repository, for example <code>calendar-data</code>. Tick “Add a README file”.</li>
+            <li>Settings → Developer settings → Fine-grained tokens → Generate new token. Repository access: only that repository. Permissions → Contents: <b>Read and write</b>.</li>
+            <li>Paste the repository and the token below and tap Connect.</li>
+            <li>Then tap “Set up other phone” and send the link to the other phone.</li>
+          </ol>
+        </details>
+        <div><label>Private repository</label><input id="f-repo" value="${esc(keep.repo)}" placeholder="your-name/calendar-data" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div><label>Access token</label><input id="f-token" type="password" value="${esc(keep.token)}" placeholder="github_pat_…" autocomplete="off"></div>
+        <button class="btn wide" data-act="saveSync">Connect</button>`}
+      <hr>
+      <h3>Backup</h3>
+      <div class="two">
+        <button class="btn ghost" data-act="export">Export file</button>
+        <button class="btn ghost" data-act="import">Import file</button>
+      </div>
+      <div class="muted">Import adds anything missing and never overwrites newer changes.</div>
+    </div>`);
+}
+
+/* ---------- sync through a private GitHub repository ---------- */
+// The whole calendar is one file, calendar.json, in a private repo. Each phone
+// reads it, merges record by record (newest change wins), and writes it back
+// with the sha it read. If the other phone wrote in between, GitHub refuses the
+// write (409) and we go round again with its version. Every write is a commit,
+// so the repo's history doubles as a change log and an undo of last resort.
+const FILE = "calendar.json";
+let SY = {kind:"off", msg:""}, syncing = false, again = false, syncT = null;
+
+function b64e(s){
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for(let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+const b64d = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), c=>c.charCodeAt(0)));
+const flat = o => JSON.stringify(o, Object.keys(o).sort());
+const newer = (p, q) => (p.u||0) !== (q.u||0) ? (p.u||0) > (q.u||0) : flat(p) > flat(q);
+
+function normalize(d){
+  const out = blankDoc();
+  if(!d || typeof d !== "object") return out;
+  if(Array.isArray(d.people)) out.people = out.people.map(p=>{
+    const q = d.people.find(x=>x && x.id === p.id);
+    return q ? {id:p.id, name:String(q.name||""), color:/^#[0-9a-f]{6}$/i.test(q.color) ? q.color : p.color, u:+q.u||0} : p;
+  });
+  if(Array.isArray(d.events)) out.events = d.events.filter(e=>
+    e && typeof e.id === "string" && (e.del || (/^\d{4}-\d{2}-\d{2}$/.test(e.date) && typeof e.title === "string")));
+  return out;
+}
+function merge(x, y){
+  const people = x.people.map(p=>{ const q = y.people.find(o=>o.id === p.id); return q && newer(q, p) ? q : p; });
+  const m = new Map();
+  x.events.concat(y.events).forEach(e=>{ const c = m.get(e.id); if(!c || newer(e, c)) m.set(e.id, e); });
+  return {people, events:[...m.values()]};
+}
+// One event per line, sorted, so the repo's history shows clean one-line diffs.
+function serialize(d){
+  const evs = d.events.slice().sort((p,q)=> p.id < q.id ? -1 : p.id > q.id ? 1 : 0).map(flat);
+  return '{"app":"schedule","v":1,\n"people":[' + d.people.map(flat).join(",") + '],\n"events":[\n' + evs.join(",\n") + "\n]}\n";
+}
+function commitMessage(before, after){
+  const old = new Map((before ? before.events : []).map(e=>[e.id, e]));
+  const bits = [];
+  after.events.forEach(e=>{
+    const o = old.get(e.id);
+    if(!o){ if(!e.del) bits.push("+ " + e.title); }
+    else if(o.u !== e.u && !o.del) bits.push(e.del ? "- " + o.title : "~ " + e.title);
+  });
+  if(before && after.people.some(p=>flat(p) !== flat(before.people.find(x=>x.id === p.id) || {}))) bits.push("names/colours");
+  const who = L.me ? name(L.me) : "Phone";
+  return who + ": " + (bits.slice(0,4).join(", ") + (bits.length > 4 ? " and " + (bits.length-4) + " more" : "") || "sync");
+}
+
+async function gh(method, body){
+  const opt = {
+    method, cache:"no-store",
+    headers:{Authorization:"Bearer " + L.token, Accept:"application/vnd.github+json"}
+  };
+  if(body){ opt.body = JSON.stringify(body); opt.headers["Content-Type"] = "application/json"; }
+  if(window.AbortSignal && AbortSignal.timeout) opt.signal = AbortSignal.timeout(20000);
+  return fetch("https://api.github.com/repos/" + L.repo + "/contents/" + FILE, opt);
+}
+function failure(status){
+  const e = new Error(
+    status === 401 ? "GitHub refused the token. It may have expired: make a new one and connect again." :
+    status === 403 ? "The token isn't allowed to change " + L.repo + ". It needs Contents: Read and write." :
+    status === 404 ? "Can't find " + L.repo + ". Check the name, and that the token was given access to it." :
+    "GitHub answered " + status + ". Trying again later.");
+  e.http = status;
+  return e;
+}
+function scheduleSync(ms){ clearTimeout(syncT); syncT = setTimeout(sync, ms || 0); }
+function setSync(kind, msg){ SY = {kind, msg: msg || ""}; drawSync(); }
+function drawSync(){
+  const label = {off:"Not shared", busy:"Syncing", ok:"Synced", wait:L.dirty ? "Waiting" : "Offline", err:"Sync problem"}[SY.kind];
+  $("sync").innerHTML = `<i class="sdot ${SY.kind}"></i>${label}`;
+  const st = $("s-status"); if(st) st.textContent = syncDetail();
+}
+
+async function sync(){
+  if(!L.repo || !L.token){ setSync("off"); return; }
+  if(syncing){ again = true; return; }
+  syncing = true;
+  if(L.dirty) setSync("busy");
+  const startEdits = edits;
+  try{
+    for(let tries = 0; ; tries++){
+      if(tries === 5) throw new Error("Both phones kept writing at the same moment. Trying again shortly.");
+      const r = await gh("GET");
+      let remote = null, sha = "";
+      if(r.ok){
+        const j = await r.json();
+        if(j.encoding !== "base64") throw new Error(FILE + " is too large to read.");
+        remote = normalize(JSON.parse(b64d(j.content)));
+        sha = j.sha;
+      }
+      else if(r.status !== 404) throw failure(r.status);
+      const merged = remote ? merge(S, remote) : S;
+      if(!remote || serialize(merged) !== serialize(remote)){
+        const w = await gh("PUT", {
+          message: commitMessage(remote, merged),
+          content: b64e(serialize(merged)),
+          ...(sha ? {sha} : {})
+        });
+        if(w.status === 409 || w.status === 422) continue;   // the other phone got there first
+        if(!w.ok) throw failure(w.status);
+      }
+      // edits made while we were waiting on the network are newer, so they survive this
+      const before = serialize(S);
+      S = merge(S, merged);
+      saveDoc();
+      if(serialize(S) !== before) render();
+      break;
+    }
+    L.last = Date.now();
+    if(edits === startEdits) L.dirty = false; else again = true;
+    setSync("ok");
+  }catch(e){
+    if(e.http || e instanceof SyntaxError || /too large|same moment/.test(e.message)) setSync("err", e.message);
+    else setSync("wait");   // fetch failed: no connection
+  }finally{
+    syncing = false;
+    saveLocal(); drawSync();
+    if(again){ again = false; scheduleSync(300); }
+  }
+}
+
+function setupLink(){
+  return location.href.split("#")[0] + "#join=" + encodeURIComponent(b64e(JSON.stringify({repo:L.repo, token:L.token})));
+}
+// Opens the Android widget app with the same connection. If the app isn't installed,
+// Chrome goes to the fallback: the page the APK is downloaded from.
+function widgetLink(){
+  const d = encodeURIComponent(b64e(JSON.stringify({repo:L.repo, token:L.token})));
+  const app = encodeURIComponent(location.href.split("#")[0]);
+  const owner = location.hostname.match(/^([\w-]+)\.github\.io$/), repo = location.pathname.split("/")[1];
+  const fallback = owner && repo
+    ? ";S.browser_fallback_url=" + encodeURIComponent("https://github.com/" + owner[1] + "/" + repo + "/releases/latest") : "";
+  return "intent://setup?d=" + d + "&u=" + app + "#Intent;scheme=schedulewidget;package=io.github.x882b.schedule" + fallback + ";end";
+}
+function cleanRepo(s){
+  return s.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/, "").replace(/\/+$/, "");
+}
+
+/* ---------- interaction ---------- */
+document.body.addEventListener("click", e=>{
+  const tab = e.target.closest("[data-tab]");
+  if(tab){ L.tab = tab.dataset.tab; saveLocal(); render(); window.scrollTo(0,0); return; }
+  const b = e.target.closest("[data-act]");
+  if(!b) return;
+  const a = b.dataset.act, id = b.dataset.id, d = b.dataset.d, v = b.dataset.v;
+
+  if(a === "new") eventSheet(null, d || (L.tab === "month" ? selDay : today()));
+  else if(a === "edit") eventSheet(id, d);
+  else if(a === "filter"){ L.filter = v; saveLocal(); render(); }
+  else if(a === "more"){ ahead += 90; render(); }
+  else if(a === "pickDay"){
+    selDay = d;
+    if(d.slice(0,7) !== month) month = d.slice(0,7);
+    render();
+  }
+  else if(a === "month"){
+    month = +v ? addMonths(month, +v) : today().slice(0,7);
+    selDay = "";
+    render();
+  }
+  else if(a === "seg"){
+    const wrap = b.closest("[data-seg]");
+    wrap.dataset.val = v;
+    wrap.classList.remove("bad");
+    wrap.querySelectorAll(".pill").forEach(x=>x.classList.toggle("on", x === b));
+    if(wrap.dataset.seg === "repeat") $("untilrow").hidden = !v;
+    if(wrap.dataset.seg === "me" && $("s-status")){ L.me = v; saveLocal(); render(); }
+  }
+  else if(a === "clearTime"){ $("f-from").value = ""; $("f-to").value = ""; }
+  else if(a === "saveEv") saveEvent(id);
+  else if(a === "skipDay"){
+    const old = S.events.find(x=>x.id === id); if(!old) return;
+    upsert(Object.assign({}, old, {skip:(old.skip||[]).concat(d), by:L.me, u:stamp(old)}));
+    closeSheet(); changed();
+  }
+  else if(a === "delEv"){
+    // two taps, so a stray touch never deletes anything
+    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Tap again to delete"; b.classList.add("warn"); return; }
+    const old = S.events.find(x=>x.id === id); if(!old) return;
+    upsert({id, del:1, by:L.me, u:stamp(old)});
+    closeSheet(); changed();
+  }
+  else if(a === "welcomeDone"){
+    if(!segVal("me")){ box.querySelector('[data-seg="me"]').classList.add("bad"); return; }
+    L.me = segVal("me");
+    PEOPLE.forEach(p=>{
+      const n = val("w-" + p).trim(), cur = person(p);
+      if(n && n !== cur.name) Object.assign(cur, {name:n, u:stamp(cur)});
+    });
+    closeSheet(); changed();
+  }
+  else if(a === "settings") settingsSheet();
+  else if(a === "color"){
+    const p = person(b.dataset.p);
+    Object.assign(p, {color:v, u:stamp(p)});
+    changed(); settingsSheet();
+  }
+  else if(a === "saveSync"){
+    const repo = cleanRepo(val("f-repo")), token = val("f-token").trim();
+    if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ $("f-repo").classList.add("bad"); return; }
+    if(!token){ $("f-token").classList.add("bad"); return; }
+    L.repo = repo; L.token = token; L.dirty = true; saveLocal();
+    sync().then(()=>{ if(sheet.classList.contains("on") && $("s-status")) settingsSheet(); });
+    settingsSheet();
+  }
+  else if(a === "syncNow") sync();
+  else if(a === "shareSetup"){
+    const link = setupLink();
+    if(navigator.share) navigator.share({title:"Schedule", text:"Open this on your phone to join our calendar:", url:link}).catch(()=>{});
+    else if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>alert("Link copied. Send it to the other phone."), ()=>prompt("Copy this link:", link));
+    else prompt("Copy this link:", link);
+  }
+  else if(a === "widget") location.href = widgetLink();
+  else if(a === "unlink"){
+    L.repo = ""; L.token = ""; saveLocal(); setSync("off"); settingsSheet();
+  }
+  else if(a === "export"){
+    const blob = new Blob([serialize(S)], {type:"application/json"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "schedule-" + today() + ".json";
+    link.click();
+  }
+  else if(a === "import"){
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "application/json,.json";
+    inp.onchange = () => {
+      const f = inp.files[0]; if(!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try{
+          const data = JSON.parse(rd.result);
+          if(!Array.isArray(data.events)) throw 0;
+          const n = S.events.length;
+          S = merge(S, normalize(data));
+          changed(); settingsSheet();
+          alert("Imported. " + (S.events.length - n) + " new events.");
+        }catch(err){ alert("That file isn't a Schedule export."); }
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
+  }
+});
+document.body.addEventListener("change", e=>{
+  const m = e.target.id.match(/^s-name-([ab])$/);
+  if(m){
+    const p = person(m[1]), n = e.target.value.trim();
+    if(n !== p.name){ Object.assign(p, {name:n, u:stamp(p)}); changed(); }
+  }
+});
+document.body.addEventListener("input", e=>{
+  e.target.classList.remove("bad");
+  // keep the "whose phone" choice labelled with the names as they're typed
+  const m = e.target.id.match(/^w-([ab])$/);
+  if(m){
+    const pill = box.querySelector(`[data-seg="me"] [data-v="${m[1]}"]`);
+    if(pill) pill.textContent = e.target.value.trim() || (m[1] === "a" ? "Person 1" : "Person 2");
+  }
+});
+document.body.addEventListener("keydown", e=>{
+  if(e.key === "Enter" && e.target.id === "f-title"){ e.preventDefault(); saveEvent(box.querySelector('[data-act="saveEv"]').dataset.id); }
+});
+
+// swipe the month grid sideways to change month
+let touchX = 0, touchY = 0;
+view.addEventListener("touchstart", e=>{ touchX = e.touches[0].clientX; touchY = e.touches[0].clientY; }, {passive:true});
+view.addEventListener("touchend", e=>{
+  if(L.tab !== "month" || !e.target.closest(".grid")) return;
+  const dx = e.changedTouches[0].clientX - touchX, dy = e.changedTouches[0].clientY - touchY;
+  if(Math.abs(dx) > 60 && Math.abs(dy) < 50){ month = addMonths(month, dx < 0 ? 1 : -1); selDay = ""; render(); }
+});
+
+// pick up the other phone's changes whenever this one is looked at
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "visible"){ render(); sync(); }
+});
+window.addEventListener("online", ()=>sync());
+// the widget's + opens index.html#new; when the app is already open that's only a hash change
+window.addEventListener("hashchange", ()=>{
+  if(location.hash !== "#new") return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if(L.me) eventSheet(null, today());
+});
+setInterval(()=>{
+  if(document.visibilityState !== "visible") return;
+  render();            // moves "today" past midnight and greys out what's over
+  sync();
+}, 60000);
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ---------- service worker: offline + installable ---------- */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+
+/* ---------- boot ---------- */
+(function(){
+  const saved = readJSON(DOC_KEY);
+  if(saved) S = normalize(saved);
+  L = Object.assign(L, readJSON(LOCAL_KEY) || {});
+  // a link from "Set up other phone": take the connection, then drop it from the address bar
+  const join = location.hash.match(/^#join=(.+)$/);
+  if(join){
+    try{
+      const j = JSON.parse(b64d(decodeURIComponent(join[1])));
+      if(j.repo && j.token){ L.repo = j.repo; L.token = j.token; saveLocal(); }
+    }catch(e){}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  // long-press the home screen icon → "New event"
+  const quick = location.hash === "#new";
+  if(quick) history.replaceState(null, "", location.pathname + location.search);
+  render();
+  if(quick && L.me) eventSheet(null, today());
+  const ask = () => { if(!L.me) welcomeSheet(); };
+  if(L.repo && L.token) sync().then(ask); else ask();
+})();
+</script>
+</body>
+</html>

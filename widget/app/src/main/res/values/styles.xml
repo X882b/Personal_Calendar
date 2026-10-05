@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Setup" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">@color/steel</item>
+        <item name="android:colorPrimaryDark">@color/steel</item>
+        <item name="android:colorAccent">@color/blue</item>
+        <item name="android:windowBackground">@color/steel</item>
+        <item name="android:statusBarColor">@color/steel</item>
+        <item name="android:navigationBarColor">@color/steel</item>
+    </style>
+</resources>

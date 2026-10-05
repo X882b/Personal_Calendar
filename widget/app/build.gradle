@@ -1,0 +1,54 @@
+plugins {
+    id "com.android.application"
+}
+
+// Each GitHub Actions build gets a higher versionCode, so a new APK installs over the old one.
+def build = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+android {
+    namespace "io.github.x882b.schedule"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "io.github.x882b.schedule"
+        minSdk 26
+        targetSdk 35
+        versionCode build
+        versionName "1.0." + build
+    }
+
+    // The key is in the repo on purpose: updates must be signed with the same key to
+    // install over the old app, and CI has nowhere else to keep it. Anyone who can
+    // change this repo can already change the web app, which holds the same token.
+    signingConfigs {
+        release {
+            storeFile file("../widget.keystore")
+            storeType "pkcs12"
+            storePassword "schedule"
+            keyAlias "widget"
+            keyPassword "schedule"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
+
+// the sources contain "·" and "…"
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+}
