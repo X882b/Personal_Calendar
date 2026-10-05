@@ -68,36 +68,6 @@ install it as in step 2.
 The link contains the access token. Send it only to each other, and delete the
 message afterwards if you like.
 
-## How syncing works
-
-- Every phone keeps a full copy, so the app always opens instantly, even with
-  no signal.
-- The calendar is a single file, `calendar.json`, in your private repo. A
-  phone syncs when it opens, every minute while it's on screen, and right
-  after you change something.
-- If you both change things at the same time, both changes are kept. If you
-  both edit the *same* event, the later edit wins.
-- Every sync that changes something is a commit in `calendar-data`, with a
-  message like `Ana: + Dentist`. That history is a full log of who changed
-  what, and a way back if something is deleted by mistake.
-
-The dot in the top bar shows the state: green **Synced**, yellow
-**Waiting/Offline** (changes kept on the phone, they go out later), red **Sync
-problem** (tap it for the reason, usually an expired token).
-
-## Updating it later
-
-Edit `index.html`, then **change the `VERSION` string at the top of `sw.js`**
-(for example `schedule-v1` to `schedule-v2`). Commit and push both. Without
-that, phones keep serving the old cached copy.
-
-## Backup
-
-⚙ → Backup → **Export file** saves everything as JSON. **Import file** adds
-whatever is missing and never overwrites newer changes. With sharing on, the
-private repo is already a backup, so this is mostly for before you switch
-phones without sharing.
-
 ## 5. The home-screen widget (Android)
 
 A small separate app, **Schedule widget**, puts today and the coming days on
@@ -136,3 +106,33 @@ keeps the connection.
 
 If the release page shows nothing yet, the build hasn't run on `main`: check
 the repo's **Actions** tab.
+
+## How syncing works
+
+- Every phone keeps a full copy, so the app always opens instantly, even with
+  no signal.
+- The calendar is a single file, `calendar.json`, in your private repo. A
+  phone syncs when it opens, every minute while it's on screen, and right
+  after you change something.
+- If you both change things at the same time, both changes are kept. If you
+  both edit the *same* event, the later edit wins.
+- Every sync that changes something is a commit in `calendar-data`, with a
+  message like `Ana: + Dentist`. That history is a full log of who changed
+  what, and a way back if something is deleted by mistake.
+
+The dot in the top bar shows the state: green **Synced**, yellow
+**Waiting/Offline** (changes kept on the phone, they go out later), red **Sync
+problem** (tap it for the reason, usually an expired token).
+
+## Updating it later
+
+Edit `index.html`, then **change the `VERSION` string at the top of `sw.js`**
+(for example `schedule-v1` to `schedule-v2`). Commit and push both. Without
+that, phones keep serving the old cached copy.
+
+## Backup
+
+⚙ → Backup → **Export file** saves everything as JSON. **Import file** adds
+whatever is missing and never overwrites newer changes. With sharing on, the
+private repo is already a backup, so this is mostly for before you switch
+phones without sharing.
