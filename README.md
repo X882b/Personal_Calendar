@@ -54,8 +54,7 @@ event titles in each day, and the chosen day is listed beside the month.
   the computer's browser. It asks whose it is, then syncs like a phone.
 - **Install it (optional):** in Chrome or Edge, the install icon at the right
   of the address bar (Chrome: or ⋮ → Cast, save and share → Install page as
-  app). It then opens in
-  its own window, like a program.
+  app). It then opens in its own window, like a program.
 - **Keyboard:** **N** new event, **←** **→** previous/next month, **Esc**
   closes a form, **Enter** in the title saves.
 - Date and time fields follow the browser's language: in an English (US)
