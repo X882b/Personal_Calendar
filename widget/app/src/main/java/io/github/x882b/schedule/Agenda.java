@@ -25,8 +25,12 @@ final class Agenda {
         String color;
     }
 
+    static final class Category {
+        String id, name;
+    }
+
     static final class Event {
-        String id, title, who, from, to, repeat, note;
+        String id, title, who, cat, from, to, repeat, note;
         LocalDate date, last, until;
         final Set<LocalDate> skip = new HashSet<>();
     }
@@ -48,6 +52,7 @@ final class Agenda {
             "August", "September", "October", "November", "December"};
 
     final Person a = new Person(), b = new Person();
+    final List<Category> cats = new ArrayList<>();
     final List<Event> events = new ArrayList<>();
 
     Agenda() {
@@ -72,6 +77,19 @@ final class Agenda {
                 String c = p.optString("color", "");
                 if (c.matches("#[0-9a-fA-F]{6}")) t.color = c;
             }
+            // a file from before categories existed gets the same three the app starts with
+            JSONArray cs = o.optJSONArray("cats");
+            if (cs == null) cs = new JSONArray("[{\"id\":\"work\",\"name\":\"Work schedule\"},"
+                    + "{\"id\":\"doctors\",\"name\":\"Doctors\"},{\"id\":\"birthdays\",\"name\":\"Birthdays\"}]");
+            for (int i = 0; i < cs.length(); i++) {
+                JSONObject c = cs.optJSONObject(i);
+                if (c == null || (c.has("del") && c.optInt("del", 1) != 0) || c.optString("id").isEmpty()) continue;
+                Category k = new Category();
+                k.id = c.optString("id");
+                k.name = c.optString("name");
+                g.cats.add(k);
+            }
+            g.cats.sort((x, y) -> x.name.compareToIgnoreCase(y.name));
             JSONArray es = o.optJSONArray("events");
             if (es != null) for (int i = 0; i < es.length(); i++) {
                 JSONObject e = es.optJSONObject(i);
@@ -89,6 +107,7 @@ final class Agenda {
                 v.to = time(e.optString("to"));
                 v.repeat = e.optString("repeat", "");
                 v.note = e.optString("note", "");
+                v.cat = e.optString("cat", "");
                 JSONArray sk = e.optJSONArray("skip");
                 if (sk != null) for (int j = 0; j < sk.length(); j++) {
                     LocalDate d = day(sk.optString(j));
@@ -109,6 +128,24 @@ final class Agenda {
 
     private static String time(String s) {
         return s != null && s.matches("\\d\\d:\\d\\d") ? s : "";
+    }
+
+    /** The category with this id, or null (none chosen, or deleted since). */
+    Category cat(String id) {
+        if (id == null || id.isEmpty()) return null;
+        for (Category c : cats) if (c.id.equals(id)) return c;
+        return null;
+    }
+
+    /** Only one category's events, like the app's category filter (visible()); unknown id = everything. */
+    Agenda only(String catId) {
+        if (cat(catId) == null) return this;
+        Agenda x = new Agenda();
+        x.a.name = a.name; x.a.color = a.color;
+        x.b.name = b.name; x.b.color = b.color;
+        x.cats.addAll(cats);
+        for (Event e : events) if (catId.equals(e.cat)) x.events.add(e);
+        return x;
     }
 
     String name(String who) {

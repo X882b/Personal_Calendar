@@ -43,6 +43,11 @@ final class Store {
 
     void failed(String why) { p.edit().putString("error", why).apply(); }
 
+    /** Each widget on the home screen keeps its own category ("" = everything). */
+    String widgetCat(int widgetId) { return p.getString("cat_" + widgetId, ""); }
+    void setWidgetCat(int widgetId, String cat) { p.edit().putString("cat_" + widgetId, cat).apply(); }
+    void forgetWidget(int widgetId) { p.edit().remove("cat_" + widgetId).apply(); }
+
     synchronized String readDoc() {
         try {
             return doc.exists() ? new String(Files.readAllBytes(doc.toPath()), StandardCharsets.UTF_8) : "";

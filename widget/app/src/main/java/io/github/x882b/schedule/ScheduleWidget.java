@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.view.View;
 import android.widget.RemoteViews;
 
 import java.text.SimpleDateFormat;
@@ -17,7 +18,8 @@ import java.util.Locale;
 /**
  * The home-screen widget. Android calls onUpdate about every 30 minutes
  * (updatePeriodMillis); the ↻ button asks for an update straight away.
- * Tapping anything else opens the web app.
+ * The category label under the date picks what this widget shows;
+ * tapping anything else opens the web app.
  */
 public class ScheduleWidget extends AppWidgetProvider {
     static final String ACTION_REFRESH = "io.github.x882b.schedule.REFRESH";
@@ -27,6 +29,12 @@ public class ScheduleWidget extends AppWidgetProvider {
     public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
         draw(c, m, ids, false);
         if (System.currentTimeMillis() - new Store(c).fetched() > MIN_GAP) pullThenRedraw(c);
+    }
+
+    @Override
+    public void onDeleted(Context c, int[] ids) {
+        Store s = new Store(c);
+        for (int id : ids) s.forgetWidget(id);
     }
 
     @Override
@@ -64,10 +72,22 @@ public class ScheduleWidget extends AppWidgetProvider {
     static void draw(Context c, AppWidgetManager m, int[] ids, boolean busy) {
         Store s = new Store(c);
         boolean ready = s.connected() && !s.appUrl().isEmpty();
+        Agenda g = Agenda.parse(s.readDoc());
         for (int id : ids) {
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
             v.setTextViewText(R.id.date, Agenda.longDay(LocalDate.now()));
             v.setTextViewText(R.id.status, busy ? "updating…" : status(s));
+
+            // the category label: outlined for everything, filled when narrowed to one category
+            Agenda.Category cat = g.cat(s.widgetCat(id));
+            v.setTextViewText(R.id.filter, (cat == null ? "Everything" : cat.name) + " ▾");
+            v.setInt(R.id.filter, "setBackgroundResource", cat == null ? R.drawable.chip : R.drawable.chip_on);
+            v.setTextColor(R.id.filter, cat == null ? 0xFFE8E6E1 : 0xFF111316);
+            v.setViewVisibility(R.id.filter, s.connected() ? View.VISIBLE : View.GONE);
+            Intent pick = new Intent(c, FilterActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                    .setData(Uri.parse("widget://filter/" + id));   // one PendingIntent per widget
+            v.setOnClickPendingIntent(R.id.filter, PendingIntent.getActivity(c, 5, pick,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
 
             Intent rows = new Intent(c, RowsService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
             rows.setData(Uri.parse(rows.toUri(Intent.URI_INTENT_SCHEME)));   // one adapter per widget
@@ -79,7 +99,8 @@ public class ScheduleWidget extends AppWidgetProvider {
             PendingIntent setup = PendingIntent.getActivity(c, 0, new Intent(c, SetupActivity.class),
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             PendingIntent open = ready ? openUrl(c, s.appUrl(), 1, PendingIntent.FLAG_IMMUTABLE) : setup;
-            v.setOnClickPendingIntent(R.id.head, open);
+            v.setOnClickPendingIntent(R.id.date, open);
+            v.setOnClickPendingIntent(R.id.status, open);
             v.setOnClickPendingIntent(R.id.empty, open);
             v.setOnClickPendingIntent(R.id.add, ready ? openUrl(c, s.appUrl() + "#new", 2, PendingIntent.FLAG_IMMUTABLE) : setup);
             v.setOnClickPendingIntent(R.id.refresh, PendingIntent.getBroadcast(c, 3,
