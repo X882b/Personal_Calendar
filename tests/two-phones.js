@@ -20,8 +20,10 @@ async function fakeGitHub(ctx, tag){
     const req = route.request();
     if(repo.down.has(tag)) return route.abort('internetdisconnected');
     const cors = {'Access-Control-Allow-Origin':'*','Content-Type':'application/json'};
+    const authed = req.headers()['authorization'] === 'Bearer tok123';
+    if(req.url().endsWith('/user')) return route.fulfill(authed ? {status:200, headers:cors, body:'{"login":"test"}'} : {status:401, headers:cors, body:'{}'});
     if(!req.url().endsWith('/repos/test/data/contents/calendar.json')) return route.fulfill({status:404, headers:cors, body:'{}'});
-    if(req.headers()['authorization'] !== 'Bearer tok123') return route.fulfill({status:401, headers:cors, body:'{}'});
+    if(!authed) return route.fulfill({status:401, headers:cors, body:'{}'});
     if(req.method() === 'GET'){
       if(!repo.file) return route.fulfill({status:404, headers:cors, body:'{"message":"Not Found"}'});
       return route.fulfill({status:200, headers:cors, body:JSON.stringify({sha:repo.sha, encoding:'base64', content:Buffer.from(repo.file).toString('base64').replace(/(.{60})/g,'$1\n')})});
@@ -93,7 +95,15 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert(swimDays >= 2, 'weekly repeat appears on multiple days: ' + swimDays);
   const tripDays = await pa.$$eval('.dayb', bs=>bs.filter(b=>b.textContent.includes('Trip to Novi Sad')).length);
   assert(tripDays === 4, 'multi-day trip covers 4 days: ' + tripDays);
-  assert(upText.includes('day 2 of 4'), 'trip shows "day 2 of 4"');
+  assert(!upText.includes('day 2 of 4') && !upText.includes('cont.'), 'multi-day events show no "day k of n" or "cont."');
+  const day2 = await pa.evaluate(()=>evRow({ev:{id:'x', title:'Shift', who:'a', date:'2026-01-01', last:'2026-01-03', from:'15:30', to:'23:30', repeat:'', note:''}, s:'2026-01-01'}, '2026-01-02'));
+  assert(day2.includes('15:30') && day2.includes('23:30') && !day2.includes('all day'), 'a timed multi-day event shows its hours on day 2');
+  const cell = await pa.evaluate(()=>{
+    const kept = S.events;
+    S.events = [{id:'x', title:'Shift', who:'ab', cat:'', date:'2026-01-01', last:'2026-01-03', from:'15:30', to:'23:30', repeat:'', note:''}];
+    try{ return xlines({who:'all', cat:''}, '')('2026-01-02'); } finally { S.events = kept; }
+  });
+  assert(cell.length === 1 && cell[0].text.startsWith('15:30–23:30'), 'export shows the hours on day 2 too: ' + cell[0].text);
   await pa.screenshot({path:SHOTS+'/02-upcoming.png', fullPage:false});
   await pa.screenshot({path:SHOTS+'/02b-upcoming-full.png', fullPage:true});
 
@@ -139,10 +149,22 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert((await pa.textContent('#s-status')).includes('refused the token'), 'bad token explained');
   await pa.screenshot({path:SHOTS+'/06-settings-error.png'});
   await pa.click('[data-act="unlink"]');
-  await pa.fill('#f-repo', 'test/data');
+  // just the repository's name: the owner comes from the token
+  await pa.fill('#f-repo', 'data');
+  await pa.fill('#f-token', 'nope');
+  await pa.click('[data-act="saveSync"]');
+  await pa.waitForFunction(()=>document.querySelector('#f-repo-hint').textContent.includes('refused this token'));
+  assert(await pa.evaluate(()=>!L.repo), 'bare name + bad token: explained, not connected');
+  await pa.fill('#f-repo', 'my-repo!');
+  await pa.fill('#f-token', 'tok123');
+  await pa.click('[data-act="saveSync"]');
+  await pa.waitForFunction(()=>document.querySelector('#f-repo-hint').textContent.includes("isn't a repository name"));
+  assert(await pa.evaluate(()=>!L.repo), 'impossible name is explained, not connected');
+  await pa.fill('#f-repo', 'data');
   await pa.fill('#f-token', 'tok123');
   await pa.click('[data-act="saveSync"]');
   await pa.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Synced'));
+  assert(await pa.evaluate(()=>L.repo) === 'test/data', 'bare name connects as owner/name');
   assert(remoteEvents().length === 7, 'A pushed 7 events to repo');
   assert(repo.file.split('\n').length > 8, 'file is one event per line');
   await pa.screenshot({path:SHOTS+'/07-settings-synced.png'});

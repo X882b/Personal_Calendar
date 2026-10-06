@@ -6,7 +6,7 @@ as the user's training log, Plates (`X882b/plates`): simple, readable, tuned
 to their needs, and it has to still work unchanged in three years.
 
 Planned home: `https://x882b.github.io/Personal_Calendar/` from `main`, root
-folder. Current cache version: **schedule-v3**.
+folder. Current cache version: **schedule-v5**.
 
 Prefer small, direct changes to the existing file over refactors, frameworks
 or a build pipeline.
@@ -29,7 +29,7 @@ or a build pipeline.
 ## THE DEPLOY GOTCHA
 
 **Every change to `index.html` must bump `VERSION` at the top of `sw.js`**
-(`schedule-v3` → `schedule-v4`), and both files must be pushed. The service
+(`schedule-v5` → `schedule-v6`), and both files must be pushed. The service
 worker serves the cached copy first; without the bump phones keep the old app.
 
 Upload files by drag-and-drop, never by pasting into GitHub's web editor (a
@@ -101,6 +101,9 @@ S = {
 
 Dates are `YYYY-MM-DD` strings; arithmetic is UTC (`D()`, `ymd()`, `addDays`,
 `diffDays`) so DST can't shift a day. Weeks start on Monday. Times are 24h.
+A multi-day event shows its hours on every day it covers, in the list, the
+month grid, exports and the widget; no "day 2 of 3" or "cont." (the user
+asked for both, from a phone screenshot of a 3-day shift).
 `occStart(ev, day)` answers "is this event on this day, and which occurrence";
 everything that lists events uses it via `dayEvents()`.
 
@@ -125,6 +128,11 @@ read like `Ana: + Dentist, ~ Gym`.
 
 Fetch failure (no signal) shows "Waiting"/"Offline", never an error. HTTP
 errors get a plain-language reason in Settings (`failure()`).
+
+Connect accepts the bare repository name: `connectSync()` asks `GET /user`
+with the token for its owner and makes it `owner/name` (the user's first try
+on the phone was just `calendar-data`). Every refusal there gets a sentence
+under the field, not only a red border.
 
 "Set up other phone" builds `index.html#join=<base64 {repo, token}>`. Boot
 reads it, stores it in `L`, and strips it from the address bar.
@@ -169,7 +177,8 @@ token, connect, joining via the setup link, both phones editing offline, a
 conflicting write, delete propagation, a colour change, categories (empty
 title → category name, inline "+ New", filter, rename cascade, delete,
 syncing to the other phone) and the image export (real JPEG downloads for
-week, month and year, file names, free-day word). 59 checks.
+week, month and year, file names, free-day word), and connecting with just
+the repository's name. 64 checks.
 
 Minimum before shipping: that test, `node --check` on the extracted script,
 balanced CSS braces, and the `data-act` audit above.

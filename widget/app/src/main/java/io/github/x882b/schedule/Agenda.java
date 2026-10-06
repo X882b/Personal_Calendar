@@ -207,7 +207,7 @@ final class Agenda {
     }
 
     private static String key(Row r) {
-        boolean timed = !r.ev.from.isEmpty() && r.start.equals(r.day);
+        boolean timed = !r.ev.from.isEmpty();
         return (timed ? r.ev.from : "") + " " + r.ev.title.toLowerCase(Locale.ROOT);
     }
 
@@ -235,7 +235,7 @@ final class Agenda {
     static boolean past(Row r, LocalDate today, String nowHM) {
         Event ev = r.ev;
         if (r.day.isBefore(today)) return true;
-        boolean timed = !ev.from.isEmpty() && r.start.equals(r.day);
+        boolean timed = !ev.from.isEmpty();
         if (!r.day.equals(today) || !timed) return false;
         String end = !ev.to.isEmpty() && ev.to.compareTo(ev.from) > 0 ? ev.to : ev.from;
         return end.compareTo(nowHM) < 0;
