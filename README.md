@@ -55,8 +55,9 @@ You do this once, on one phone (or on a computer).
    - Permissions → Repository permissions → **Contents: Read and write**.
    - Expiration: pick the longest offered. When it runs out the app says so,
      and you make a new one and connect again.
-3. In the app: ⚙ → Sharing between phones → paste `X882b/calendar-data` and
-   the token → **Connect**. The top bar should say **Synced**.
+3. In the app: ⚙ → Sharing between phones → type `calendar-data` (or the full
+   `X882b/calendar-data`), paste the token → **Connect**. The top bar should
+   say **Synced**.
 
 ## 4. Connect the second phone
 

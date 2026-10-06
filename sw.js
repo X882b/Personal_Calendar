@@ -1,5 +1,5 @@
 // Bump this string every time you change index.html, or phones keep the old copy.
-const VERSION = "schedule-v3";
+const VERSION = "schedule-v4";
 
 const FILES = [
   "./",

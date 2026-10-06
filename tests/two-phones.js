@@ -20,8 +20,10 @@ async function fakeGitHub(ctx, tag){
     const req = route.request();
     if(repo.down.has(tag)) return route.abort('internetdisconnected');
     const cors = {'Access-Control-Allow-Origin':'*','Content-Type':'application/json'};
+    const authed = req.headers()['authorization'] === 'Bearer tok123';
+    if(req.url().endsWith('/user')) return route.fulfill(authed ? {status:200, headers:cors, body:'{"login":"test"}'} : {status:401, headers:cors, body:'{}'});
     if(!req.url().endsWith('/repos/test/data/contents/calendar.json')) return route.fulfill({status:404, headers:cors, body:'{}'});
-    if(req.headers()['authorization'] !== 'Bearer tok123') return route.fulfill({status:401, headers:cors, body:'{}'});
+    if(!authed) return route.fulfill({status:401, headers:cors, body:'{}'});
     if(req.method() === 'GET'){
       if(!repo.file) return route.fulfill({status:404, headers:cors, body:'{"message":"Not Found"}'});
       return route.fulfill({status:200, headers:cors, body:JSON.stringify({sha:repo.sha, encoding:'base64', content:Buffer.from(repo.file).toString('base64').replace(/(.{60})/g,'$1\n')})});
@@ -139,10 +141,22 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert((await pa.textContent('#s-status')).includes('refused the token'), 'bad token explained');
   await pa.screenshot({path:SHOTS+'/06-settings-error.png'});
   await pa.click('[data-act="unlink"]');
-  await pa.fill('#f-repo', 'test/data');
+  // just the repository's name: the owner comes from the token
+  await pa.fill('#f-repo', 'data');
+  await pa.fill('#f-token', 'nope');
+  await pa.click('[data-act="saveSync"]');
+  await pa.waitForFunction(()=>document.querySelector('#f-repo-hint').textContent.includes('refused this token'));
+  assert(await pa.evaluate(()=>!L.repo), 'bare name + bad token: explained, not connected');
+  await pa.fill('#f-repo', 'my-repo!');
+  await pa.fill('#f-token', 'tok123');
+  await pa.click('[data-act="saveSync"]');
+  await pa.waitForFunction(()=>document.querySelector('#f-repo-hint').textContent.includes("isn't a repository name"));
+  assert(await pa.evaluate(()=>!L.repo), 'impossible name is explained, not connected');
+  await pa.fill('#f-repo', 'data');
   await pa.fill('#f-token', 'tok123');
   await pa.click('[data-act="saveSync"]');
   await pa.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Synced'));
+  assert(await pa.evaluate(()=>L.repo) === 'test/data', 'bare name connects as owner/name');
   assert(remoteEvents().length === 7, 'A pushed 7 events to repo');
   assert(repo.file.split('\n').length > 8, 'file is one event per line');
   await pa.screenshot({path:SHOTS+'/07-settings-synced.png'});

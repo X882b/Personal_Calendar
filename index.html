@@ -111,6 +111,7 @@ label{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
 .xstep{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .xstep b{font-size:17px;text-align:center}
 .xprev{display:block;width:100%;min-height:60px;border-radius:8px;border:1px solid var(--edge);background:#fff}
+.muted.err{color:#ff8a80;margin-top:6px}
 .linkbtn{color:var(--dim);font-size:13px;text-decoration:underline;text-underline-offset:3px}
 .empty{text-align:center;color:var(--dim);padding:22px 12px}
 
@@ -623,11 +624,12 @@ function settingsSheet(){
           <ol>
             <li>On github.com, create a new <b>private</b> repository, for example <code>calendar-data</code>. Tick “Add a README file”.</li>
             <li>Settings → Developer settings → Fine-grained tokens → Generate new token. Repository access: only that repository. Permissions → Contents: <b>Read and write</b>.</li>
-            <li>Paste the repository and the token below and tap Connect.</li>
+            <li>Type the repository's name and paste the token below, then tap Connect.</li>
             <li>Then tap “Set up other phone” and send the link to the other phone.</li>
           </ol>
         </details>
-        <div><label>Private repository</label><input id="f-repo" value="${esc(keep.repo)}" placeholder="your-name/calendar-data" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div><label>Private repository</label><input id="f-repo" value="${esc(keep.repo)}" placeholder="calendar-data" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <div class="muted" id="f-repo-hint"></div></div>
         <div><label>Access token</label><input id="f-token" type="password" value="${esc(keep.token)}" placeholder="github_pat_…" autocomplete="off"></div>
         <button class="btn wide" data-act="saveSync">Connect</button>`}
       <hr>
@@ -1013,6 +1015,28 @@ function widgetLink(){
     ? ";S.browser_fallback_url=" + encodeURIComponent("https://github.com/" + owner[1] + "/" + repo + "/releases/latest") : "";
   return "intent://setup?d=" + d + "&u=" + app + "#Intent;scheme=schedulewidget;package=io.github.x882b.schedule" + fallback + ";end";
 }
+// Connect: "calendar-data" on its own is enough, GitHub tells us whose token it is.
+async function connectSync(btn){
+  const token = val("f-token").trim();
+  let repo = cleanRepo(val("f-repo"));
+  const say = (id, msg) => { $(id).classList.add("bad"); const h = $("f-repo-hint"); h.textContent = msg; h.classList.add("err"); };
+  if(!repo) return say("f-repo", "Type the repository's name, e.g. calendar-data.");
+  if(!token) return say("f-token", "Paste the access token as well.");
+  if(!repo.includes("/")){
+    btn.textContent = "Checking…";
+    let r = null, me = "";
+    try{ r = await fetch("https://api.github.com/user", {cache:"no-store", headers:{Authorization:"Bearer " + token, Accept:"application/vnd.github+json"}}); }catch(e){}
+    if(r && r.ok) me = ((await r.json().catch(()=>({}))).login) || "";
+    btn.textContent = "Connect";
+    if(!r) return say("f-repo", "No connection. Try again when you're online.");
+    if(!me) return say("f-token", "GitHub refused this token. Check that you copied all of it.");
+    repo = me + "/" + repo;
+  }
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)) return say("f-repo", "That isn't a repository name. Write it like calendar-data, or your-name/calendar-data.");
+  L.repo = repo; L.token = token; L.dirty = true; saveLocal();
+  sync().then(()=>{ if(sheet.classList.contains("on") && $("s-status")) settingsSheet(); });
+  settingsSheet();
+}
 function cleanRepo(s){
   return s.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/, "").replace(/\/+$/, "");
 }
@@ -1113,14 +1137,7 @@ document.body.addEventListener("click", e=>{
     Object.assign(p, {color:v, u:stamp(p)});
     changed(); settingsSheet();
   }
-  else if(a === "saveSync"){
-    const repo = cleanRepo(val("f-repo")), token = val("f-token").trim();
-    if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ $("f-repo").classList.add("bad"); return; }
-    if(!token){ $("f-token").classList.add("bad"); return; }
-    L.repo = repo; L.token = token; L.dirty = true; saveLocal();
-    sync().then(()=>{ if(sheet.classList.contains("on") && $("s-status")) settingsSheet(); });
-    settingsSheet();
-  }
+  else if(a === "saveSync") connectSync(b);
   else if(a === "syncNow") sync();
   else if(a === "shareSetup"){
     const link = setupLink();
@@ -1186,6 +1203,7 @@ document.body.addEventListener("change", e=>{
 let previewT = null;
 document.body.addEventListener("input", e=>{
   e.target.classList.remove("bad");
+  if((e.target.id === "f-repo" || e.target.id === "f-token") && $("f-repo-hint")) $("f-repo-hint").textContent = "";
   if(e.target.id === "x-free"){ clearTimeout(previewT); previewT = setTimeout(drawPreview, 250); }
   // keep the "whose phone" choice labelled with the names as they're typed
   const m = e.target.id.match(/^w-([ab])$/);
