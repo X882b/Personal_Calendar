@@ -43,6 +43,13 @@ final class Store {
 
     void failed(String why) { p.edit().putString("error", why).apply(); }
 
+    /** Each widget on the home screen keeps its own category ("" = everything) and person ("all", "a", "b"). */
+    String widgetCat(int widgetId) { return p.getString("cat_" + widgetId, ""); }
+    void setWidgetCat(int widgetId, String cat) { p.edit().putString("cat_" + widgetId, cat).apply(); }
+    String widgetWho(int widgetId) { return p.getString("who_" + widgetId, "all"); }
+    void setWidgetWho(int widgetId, String who) { p.edit().putString("who_" + widgetId, who).apply(); }
+    void forgetWidget(int widgetId) { p.edit().remove("cat_" + widgetId).remove("who_" + widgetId).apply(); }
+
     synchronized String readDoc() {
         try {
             return doc.exists() ? new String(Files.readAllBytes(doc.toPath()), StandardCharsets.UTF_8) : "";

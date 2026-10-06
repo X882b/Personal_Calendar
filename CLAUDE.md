@@ -6,7 +6,7 @@ as the user's training log, Plates (`X882b/plates`): simple, readable, tuned
 to their needs, and it has to still work unchanged in three years.
 
 Planned home: `https://x882b.github.io/Personal_Calendar/` from `main`, root
-folder. Current cache version: **schedule-v2**.
+folder. Current cache version: **schedule-v3**.
 
 Prefer small, direct changes to the existing file over refactors, frameworks
 or a build pipeline.
@@ -29,7 +29,7 @@ or a build pipeline.
 ## THE DEPLOY GOTCHA
 
 **Every change to `index.html` must bump `VERSION` at the top of `sw.js`**
-(`schedule-v2` → `schedule-v3`), and both files must be pushed. The service
+(`schedule-v3` → `schedule-v4`), and both files must be pushed. The service
 worker serves the cached copy first; without the bump phones keep the old app.
 
 Upload files by drag-and-drop, never by pasting into GitHub's web editor (a
@@ -57,8 +57,9 @@ print('no handler:',sorted(acts-hand),'| unused:',sorted(hand-acts))"
 ### Two kinds of state
 
 - `S`: the shared calendar. Synced between phones. localStorage `schedule_doc`.
-- `L`: this phone only: `me` (whose phone), `filter`, `tab`, `repo`, `token`,
-  `dirty`, `last`. localStorage `schedule_local`. The token and `me` must
+- `L`: this phone only: `me` (whose phone), `filter` (person), `cat`
+  (category filter), `tab`, `lang` and `xkind` (last export choices), `repo`,
+  `token`, `dirty`, `last`. localStorage `schedule_local`. The token and `me` must
   never end up in `S`.
 
 Every change to `S` goes through `changed()`: bumps `edits`, sets `L.dirty`,
@@ -69,7 +70,8 @@ saves, renders, schedules a sync.
 ```js
 S = {
   people: [{id:"a", name, color, u}, {id:"b", name, color, u}],
-  events: [{ id, title, who:"a"|"b"|"ab", date:"YYYY-MM-DD", last:"",   // last = final day of a trip
+  cats:   [{id, name, free, u}],          // free = word for empty days in exports ("libre")
+  events: [{ id, title, who:"a"|"b"|"ab", cat:""|catId, date:"YYYY-MM-DD", last:"",   // last = final day of a trip
              from:"HH:MM"|"", to:"", repeat:""|"w"|"2w"|"m"|"y", until:"",
              skip:["YYYY-MM-DD"], note, by:"a"|"b", u }]
 }
@@ -80,6 +82,16 @@ S = {
   the phone clocks disagree a little.
 - Deleting writes a tombstone `{id, del:1, by, u}`. Never drop tombstones.
   Without them a delete on one phone comes back from the other.
+- Categories merge exactly like events (newest `u` wins, deletes are
+  tombstones). The three seeds (`work`, `doctors`, `birthdays`) have fixed ids
+  and `u:0`, so two fresh phones don't create six. Deleting a category leaves
+  its events' `cat` pointing nowhere, which reads as "no category".
+- A shift is an event whose title was left empty in the form: it takes the
+  category's name. Exports show such events as just their time, and renaming
+  the category renames those titles too (same `u` bump, one sync).
+- Top-level keys: before v3, `normalize()` dropped any it didn't know. `cats`
+  is safe only because no older copy was ever in use. Think before adding
+  another top-level key.
 - `skip` holds occurrence start dates removed from a repeating event ("Remove
   this day only").
 - Unknown fields on events are preserved on edit (`Object.assign` onto the old
@@ -125,6 +137,19 @@ reads it, stores it in `L`, and strips it from the address bar.
 - Opening a sheet pushes a history entry so Android's back button closes it.
 - Deleting needs two taps on the button (no `confirm()` dialogs).
 
+### Image export
+
+`picture(o, free)` draws onto a canvas and returns it; `o = {kind:"w"|"m"|"y",
+anchor, cat, who, lang}`. Week and month go through `weeksPicture()` (the
+rota layout from the user's own spreadsheet: peach weekday header in
+underlined italic orange, then per week a date row and a content row in one
+of five pastel bands with matching dark text, black grid, thicker lines
+between weeks). The year is `yearPicture()`: 3 × 4 small months, busy days
+filled in the month's band colour. `xlines()` decides each cell's text.
+Weekday and month names come from `Intl.DateTimeFormat` in the chosen
+language (`LANGS`), always with `timeZone:"UTC"`, matching the UTC date maths.
+Share uses the Web Share API with a File; Save is a download link.
+
 ---
 
 ## Testing
@@ -141,7 +166,10 @@ compare-and-swap, 401 for a bad token, an injected write race), and runs two
 phone-sized browsers through: first-run, adding events (timed, shared,
 weekly, trip, yearly), filters, month view, removing one occurrence, bad
 token, connect, joining via the setup link, both phones editing offline, a
-conflicting write, delete propagation and a colour change.
+conflicting write, delete propagation, a colour change, categories (empty
+title → category name, inline "+ New", filter, rename cascade, delete,
+syncing to the other phone) and the image export (real JPEG downloads for
+week, month and year, file names, free-day word). 59 checks.
 
 Minimum before shipping: that test, `node --check` on the extracted script,
 balanced CSS braces, and the `data-act` audit above.
@@ -156,10 +184,13 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
 8.11.1, JDK 17).
 
 - `Agenda.java`: parses `calendar.json` and decides what falls on each day.
-  **It is a line-for-line port of `occStart()`, `dayEvents()` and
-  `renderUp()` in index.html. Change one, change the other.** It was checked
-  by running both over two years of awkward events (31st-of-month, Feb 29,
-  skips, `until`, trips over New Year) and diffing: identical.
+  **It is a line-for-line port of `occStart()`, `dayEvents()`, `renderUp()`
+  and `visible()` (`only(cat, who)`) in index.html. Change one,
+  change the other.** It was checked by running both over two years of
+  awkward events (31st-of-month, Feb 29, skips, `until`, trips over New Year)
+  and diffing: identical, also for every person × category combination, a
+  deleted category and an unknown id (both mean "everything", as in the app). A file without
+  `cats` gets the same three seeds the app uses.
 - `Sync.java`: GET of the contents API with `Accept:
   application/vnd.github.raw+json`. Read-only; the widget never writes.
 - `ScheduleWidget.java`: the AppWidgetProvider. `updatePeriodMillis` = 30
@@ -169,6 +200,13 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
 - `RowsService.java`: the list rows. The colour bar is two stacked
   ImageViews tinted with `setColorFilter` (plain `View` isn't allowed in
   RemoteViews), so "both" shows both colours.
+- Filter, per widget: the label under the date ("Everything ▾", or e.g.
+  "Ana · Work schedule" filled light) opens `FilterActivity`, a small dialog
+  with a Who group and a Category group; each tap applies at once, Done
+  closes. Stored as `who_<appWidgetId>` and `cat_<appWidgetId>` in the app's
+  prefs (`Store.widgetWho/widgetCat`), read by `RowsService` through the
+  widget id on its adapter intent, removed in `onDeleted`. A person keeps
+  shared ("ab") events, like the app's person filter.
 - `SetupActivity.java` + `Link.java`: the one screen. Connects from
   `schedulewidget://setup?d=<base64 {repo,token}>&u=<app url>` (the web
   app's "Connect the phone widget" button builds an `intent://` URL for it,
@@ -209,7 +247,8 @@ refresh behaviour and the intent hand-off from the installed PWA have not
 been seen on a phone yet; expect screenshots and adjust.
 
 **Not built (on purpose, for now):** reminders/notifications (need a push
-server), search, per-event colours, week view, a person filter on the widget.
+server), search, per-event colours, week view, a custom date range for exports (the user's own sheet spanned 5 weeks across
+two months; Month covers that case).
 
 ---
 

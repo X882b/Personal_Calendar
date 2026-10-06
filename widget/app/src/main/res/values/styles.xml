@@ -8,4 +8,9 @@
         <item name="android:statusBarColor">@color/steel</item>
         <item name="android:navigationBarColor">@color/steel</item>
     </style>
+
+    <style name="Filter" parent="android:Theme.Material.Dialog.NoActionBar">
+        <item name="android:colorAccent">@color/blue</item>
+        <item name="android:windowBackground">@drawable/dialog_bg</item>
+    </style>
 </resources>

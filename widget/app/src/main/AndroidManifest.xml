@@ -28,6 +28,15 @@
             </intent-filter>
         </activity>
 
+        <!-- the small picker behind the category label on each widget -->
+        <activity
+            android:name=".FilterActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Filter" />
+
         <receiver
             android:name=".ScheduleWidget"
             android:exported="true"

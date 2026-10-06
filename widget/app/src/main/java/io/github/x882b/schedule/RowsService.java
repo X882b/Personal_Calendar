@@ -1,5 +1,6 @@
 package io.github.x882b.schedule;
 
+import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
@@ -25,18 +26,23 @@ public class RowsService extends RemoteViewsService {
 
     @Override
     public RemoteViewsFactory onGetViewFactory(Intent intent) {
-        return new Rows(getApplicationContext());
+        return new Rows(getApplicationContext(),
+                intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID));
     }
 
     static final class Rows implements RemoteViewsFactory {
         private static final int CHALK = 0xFFE8E6E1, DIM = 0xFF8D919B, WHITE = 0xFFFFFFFF;
         private final Context c;
+        private final int widgetId;
         private Agenda g = new Agenda();
         private List<Agenda.Row> rows = new ArrayList<>();
         private LocalDate today = LocalDate.now();
         private String now = "";
 
-        Rows(Context c) { this.c = c; }
+        Rows(Context c, int widgetId) {
+            this.c = c;
+            this.widgetId = widgetId;
+        }
 
         @Override public void onCreate() {}
         @Override public void onDestroy() {}
@@ -46,8 +52,9 @@ public class RowsService extends RemoteViewsService {
             today = LocalDate.now();
             LocalTime t = LocalTime.now();
             now = String.format(Locale.ROOT, "%02d:%02d", t.getHour(), t.getMinute());
-            String json = new Store(c).readDoc();
-            g = Agenda.parse(json);
+            Store s = new Store(c);
+            String json = s.readDoc();
+            g = Agenda.parse(json).only(s.widgetCat(widgetId), s.widgetWho(widgetId));
             rows = json.isEmpty() ? new ArrayList<>() : g.upcoming(today, DAYS_AHEAD);
         }
 

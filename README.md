@@ -93,6 +93,12 @@ sharing (step 3) to be on. Do this on each phone.
 **Using it**
 
 - Tap a day or an event to open Schedule; **+** opens a new event.
+- **Choose what it shows:** tap the label under the date (**Everything ▾**)
+  and pick a person, a category, or both, e.g. **Ana · Work schedule**.
+  Events you share ("Both") still show under each person. The label turns
+  light so you can see the widget is filtered. Each widget remembers its own
+  choice, so you can place two: one with everything, one with just her work
+  schedule.
 - It refreshes about every 30 minutes (Android won't allow more often), and
   straight away with **↻**. A change made on one phone shows on the other
   phone's widget within that time.
@@ -106,6 +112,38 @@ keeps the connection.
 
 If the release page shows nothing yet, the build hasn't run on `main`: check
 the repo's **Actions** tab.
+
+## Categories
+
+Every event can have a category. Three come ready: **Work schedule**,
+**Doctors**, **Birthdays**. Add, rename or delete them in ⚙ → Categories, or
+with **+ New** right in the event form. Both phones share the same list.
+
+- The second row of chips filters the calendar by category, on top of the
+  person filter (e.g. Ana + Work schedule).
+- **Shifts:** pick the category, set the time, leave the title empty. The
+  event takes the category's name, and in exported images it shows as just
+  the time, like `07:30`. Renaming the category renames those shifts too.
+- Deleting a category keeps its events; they just lose the category.
+
+## Export as an image
+
+**Export** (top right, next to the people chips) makes a JPEG laid out like a
+printed rota: weekday header, then for every week a row of dates and a row of
+what's on, each week in its own pastel colour.
+
+- **Week**, **Month** or **Year**; ‹ › moves to the previous or next one.
+- Pick the category and the person. It starts with whatever you're filtering.
+- **Days with nothing on show:** e.g. `libre`. Saved with the category,
+  shared by both phones. Week and month only; the year leaves it out.
+- **Language** of the weekday and month names: English, Español, Srpski,
+  Српски.
+- **Share** sends it straight to WhatsApp, Viber, mail. **Save image**
+  puts it in Downloads.
+
+A month shows whole weeks, so it starts on a Monday; days from the
+neighbouring months are in lighter text. A multi-day event (like a vacation
+called `vaca`) appears on every day it covers.
 
 ## How syncing works
 

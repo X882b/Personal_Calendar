@@ -214,6 +214,91 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert(await pa.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--pb').trim()) === '#4cc38a', 'colour change reaches the other phone');
   await pb.goBack();
 
+  // --- categories ---
+  const docA = () => pa.evaluate(()=>S);
+  // a shift: category picked, title left empty, so it takes the category's name
+  await pa.click('#add');
+  await pa.click('[data-seg="who"] [data-v="b"]');
+  await pa.click('[data-seg="cat"] [data-v="work"]');
+  await pa.fill('#f-date', day(2)); await pa.fill('#f-from', '07:30');
+  await pa.click('[data-act="saveEv"]');
+  let shift = (await docA()).events.find(e=>e.cat === 'work' && !e.del);
+  assert(shift && shift.title === 'Work schedule' && shift.from === '07:30', 'empty title takes the category name');
+  // "+ New" makes a category without leaving the form
+  await pa.click('#add');
+  await pa.fill('#f-title', 'Swim lesson');
+  await pa.click('[data-act="catNew"]');
+  await pa.fill('#f-newcat', 'Kids');
+  await pa.press('#f-newcat', 'Enter');
+  assert(await pa.$eval('[data-seg="cat"]', w=>w.querySelector('.pill.on').textContent) === 'Kids', 'new category is created and picked in the form');
+  await pa.screenshot({path:SHOTS+'/20-form-category.png'});
+  await pa.click('[data-act="saveEv"]');
+  const kids = (await docA()).cats.find(c=>c.name === 'Kids');
+  assert(kids && (await docA()).events.some(e=>e.title === 'Swim lesson' && e.cat === kids.id), 'event saved with the new category');
+  // filter by category
+  await pa.click('[data-tab="up"]');
+  await pa.click('[data-act="catf"][data-v="work"]');
+  let v = await pa.textContent('#view');
+  assert(v.includes('Work schedule') && !v.includes('Dinner with friends') && !v.includes('Swim lesson'), 'category filter shows only that category');
+  await pa.screenshot({path:SHOTS+'/21-filter-work.png'});
+  // + Event while filtered starts in that category
+  await pa.click('#add');
+  assert(await pa.$eval('[data-seg="cat"]', w=>w.dataset.val) === 'work', 'new event starts in the filtered category');
+  await pa.goBack();
+  await pa.click('[data-act="catf"][data-v=""]');
+  v = await pa.textContent('#view');
+  assert(v.includes('Dinner with friends') && v.includes('Swim lesson'), '"All categories" shows everything again');
+  // rename in Settings carries the shifts' titles along; delete needs two taps
+  await pa.click('#gear');
+  await pa.fill('#s-cat-work', 'Posao');
+  await pa.press('#s-cat-work', 'Tab');
+  shift = (await docA()).events.find(e=>e.id === shift.id);
+  assert(shift.title === 'Posao', 'renaming a category renames its untitled shifts');
+  await pa.click(`[data-act="catDel"][data-id="${kids.id}"]`);
+  assert((await docA()).cats.some(c=>c.id === kids.id && !c.del), 'first tap on delete only arms it');
+  await pa.click(`[data-act="catDel"][data-id="${kids.id}"]`);
+  assert((await docA()).cats.some(c=>c.id === kids.id && c.del), 'second tap deletes the category (tombstone)');
+  assert((await docA()).events.some(e=>e.title === 'Swim lesson' && !e.del), 'its events stay in the calendar');
+  await pa.screenshot({path:SHOTS+'/22-settings-categories.png'});
+  await pa.goBack();
+
+  // --- export as image ---
+  await pa.click('[data-act="catf"][data-v="work"]');
+  await pa.click('[data-act="xopen"]');
+  await pa.waitForFunction(()=>(document.querySelector('#x-prev')||{}).src?.startsWith('data:image/jpeg'));
+  assert(await pa.$eval('[data-seg="xcat"]', w=>w.dataset.val) === 'work', 'export starts with the filtered category');
+  await pa.fill('#x-free', 'libre'); await pa.press('#x-free', 'Tab');
+  assert((await docA()).cats.find(c=>c.id === 'work').free === 'libre', 'free-day word is saved on the category');
+  await pa.click('[data-seg="xwho"] [data-v="b"]');
+  await pa.click('[data-seg="xlang"] [data-v="es"]');
+  await pa.waitForTimeout(150);
+  await pa.screenshot({path:SHOTS+'/23-export-sheet.png'});
+  for(const kind of ['w', 'm', 'y']){
+    await pa.click(`[data-seg="xkind"] [data-v="${kind}"]`);
+    const [dl] = await Promise.all([pa.waitForEvent('download'), pa.click('[data-act="xsave"]')]);
+    const file = path.join(SHOTS, 'export-' + kind + '.jpg');
+    await dl.saveAs(file);
+    const bytes = fs.readFileSync(file);
+    const dims = await pa.evaluate(b64 => new Promise(res=>{ const i = new Image(); i.onload = ()=>res([i.naturalWidth, i.naturalHeight]); i.src = 'data:image/jpeg;base64,' + b64; }), bytes.toString('base64'));
+    assert(bytes[0] === 0xFF && bytes[1] === 0xD8 && dims[0] > 1000, `${kind} export is a real JPEG ${dims.join('x')} (${dl.suggestedFilename()})`);
+  }
+  assert(/^schedule-posao-.+-\d{4}\.jpg$/.test((await Promise.all([pa.waitForEvent('download'), pa.click('[data-act="xsave"]')]))[0].suggestedFilename()), 'file is named after category, person and period');
+  await pa.click('[data-act="xstep"][data-v="-1"]');
+  assert((await pa.textContent('.xstep b')).trim() === String(new Date().getFullYear() - 1), '‹ steps back a year');
+  await pa.goBack();
+  await pa.click('[data-act="catf"][data-v=""]');
+
+  // categories reach the other phone
+  await pa.evaluate(()=>sync()); await pa.waitForFunction(()=>!JSON.parse(localStorage.schedule_local).dirty);
+  await pb.evaluate(()=>sync()); await pb.waitForTimeout(500);
+  const chipsB = await pb.$$eval('[data-act="catf"]', b=>b.map(x=>x.textContent));
+  assert(chipsB.includes('Posao') && !chipsB.includes('Kids') && !chipsB.includes('Work schedule'), 'B gets the renamed and deleted categories: ' + chipsB.join(', '));
+  assert(await pb.evaluate(()=>S.cats.find(c=>c.id === 'work').free) === 'libre', 'B gets the free-day word');
+  await pb.click('[data-act="catf"][data-v="work"]');
+  v = await pb.textContent('#view');
+  assert(v.includes('Posao') && !v.includes('Football'), 'B can filter by the synced category');
+  assert(repo.file.includes('"cats":['), 'repo file carries the categories');
+
   console.log('commits:', repo.commits);
 
   // desktop month view
