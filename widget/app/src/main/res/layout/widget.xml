@@ -49,6 +49,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/chip"
+                    android:ellipsize="end"
                     android:maxLines="1"
                     android:paddingStart="8dp"
                     android:paddingTop="2dp"
