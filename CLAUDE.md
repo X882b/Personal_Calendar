@@ -185,11 +185,11 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
 
 - `Agenda.java`: parses `calendar.json` and decides what falls on each day.
   **It is a line-for-line port of `occStart()`, `dayEvents()`, `renderUp()`
-  and the category half of `visible()` (`only()`) in index.html. Change one,
+  and `visible()` (`only(cat, who)`) in index.html. Change one,
   change the other.** It was checked by running both over two years of
   awkward events (31st-of-month, Feb 29, skips, `until`, trips over New Year)
-  and diffing: identical, also with each category filter, a deleted category
-  and an unknown id (both mean "everything", as in the app). A file without
+  and diffing: identical, also for every person × category combination, a
+  deleted category and an unknown id (both mean "everything", as in the app). A file without
   `cats` gets the same three seeds the app uses.
 - `Sync.java`: GET of the contents API with `Accept:
   application/vnd.github.raw+json`. Read-only; the widget never writes.
@@ -200,12 +200,13 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
 - `RowsService.java`: the list rows. The colour bar is two stacked
   ImageViews tinted with `setColorFilter` (plain `View` isn't allowed in
   RemoteViews), so "both" shows both colours.
-- Category filter, per widget: the label under the date ("Everything ▾",
-  filled light when narrowed) opens `FilterActivity`, a small dialog of
-  radio buttons. The choice is stored as `cat_<appWidgetId>` in the app's
-  prefs (`Store.widgetCat`), read by `RowsService` through the widget id on
-  its adapter intent, and removed in `onDeleted`. No person filter on the
-  widget yet.
+- Filter, per widget: the label under the date ("Everything ▾", or e.g.
+  "Ana · Work schedule" filled light) opens `FilterActivity`, a small dialog
+  with a Who group and a Category group; each tap applies at once, Done
+  closes. Stored as `who_<appWidgetId>` and `cat_<appWidgetId>` in the app's
+  prefs (`Store.widgetWho/widgetCat`), read by `RowsService` through the
+  widget id on its adapter intent, removed in `onDeleted`. A person keeps
+  shared ("ab") events, like the app's person filter.
 - `SetupActivity.java` + `Link.java`: the one screen. Connects from
   `schedulewidget://setup?d=<base64 {repo,token}>&u=<app url>` (the web
   app's "Connect the phone widget" button builds an `intent://` URL for it,
@@ -246,8 +247,7 @@ refresh behaviour and the intent hand-off from the installed PWA have not
 been seen on a phone yet; expect screenshots and adjust.
 
 **Not built (on purpose, for now):** reminders/notifications (need a push
-server), search, per-event colours, week view, a person filter on the widget,
-a custom date range for exports (the user's own sheet spanned 5 weeks across
+server), search, per-event colours, week view, a custom date range for exports (the user's own sheet spanned 5 weeks across
 two months; Month covers that case).
 
 ---

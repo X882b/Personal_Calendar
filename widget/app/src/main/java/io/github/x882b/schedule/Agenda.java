@@ -137,14 +137,20 @@ final class Agenda {
         return null;
     }
 
-    /** Only one category's events, like the app's category filter (visible()); unknown id = everything. */
-    Agenda only(String catId) {
-        if (cat(catId) == null) return this;
+    /**
+     * The app's filters (visible()): one person, and/or one category.
+     * who "a"/"b" keeps that person's events and the shared ones; anything else = both.
+     * An unknown or deleted category id means every category.
+     */
+    Agenda only(String catId, String who) {
+        boolean byCat = cat(catId) != null, byWho = "a".equals(who) || "b".equals(who);
+        if (!byCat && !byWho) return this;
         Agenda x = new Agenda();
         x.a.name = a.name; x.a.color = a.color;
         x.b.name = b.name; x.b.color = b.color;
         x.cats.addAll(cats);
-        for (Event e : events) if (catId.equals(e.cat)) x.events.add(e);
+        for (Event e : events)
+            if ((!byWho || e.who.equals(who) || e.who.equals("ab")) && (!byCat || catId.equals(e.cat))) x.events.add(e);
         return x;
     }
 

@@ -18,7 +18,7 @@ import java.util.Locale;
 /**
  * The home-screen widget. Android calls onUpdate about every 30 minutes
  * (updatePeriodMillis); the ↻ button asks for an update straight away.
- * The category label under the date picks what this widget shows;
+ * The label under the date picks what this widget shows (a person, a category);
  * tapping anything else opens the web app.
  */
 public class ScheduleWidget extends AppWidgetProvider {
@@ -78,11 +78,14 @@ public class ScheduleWidget extends AppWidgetProvider {
             v.setTextViewText(R.id.date, Agenda.longDay(LocalDate.now()));
             v.setTextViewText(R.id.status, busy ? "updating…" : status(s));
 
-            // the category label: outlined for everything, filled when narrowed to one category
+            // the filter label: outlined for everything, filled when narrowed ("Ana · Work schedule")
             Agenda.Category cat = g.cat(s.widgetCat(id));
-            v.setTextViewText(R.id.filter, (cat == null ? "Everything" : cat.name) + " ▾");
-            v.setInt(R.id.filter, "setBackgroundResource", cat == null ? R.drawable.chip : R.drawable.chip_on);
-            v.setTextColor(R.id.filter, cat == null ? 0xFFE8E6E1 : 0xFF111316);
+            String who = s.widgetWho(id);
+            boolean one = "a".equals(who) || "b".equals(who), narrowed = one || cat != null;
+            String label = (one ? g.name(who) : "") + (one && cat != null ? " · " : "") + (cat != null ? cat.name : "");
+            v.setTextViewText(R.id.filter, (narrowed ? label : "Everything") + " ▾");
+            v.setInt(R.id.filter, "setBackgroundResource", narrowed ? R.drawable.chip_on : R.drawable.chip);
+            v.setTextColor(R.id.filter, narrowed ? 0xFF111316 : 0xFFE8E6E1);
             v.setViewVisibility(R.id.filter, s.connected() ? View.VISIBLE : View.GONE);
             Intent pick = new Intent(c, FilterActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
                     .setData(Uri.parse("widget://filter/" + id));   // one PendingIntent per widget

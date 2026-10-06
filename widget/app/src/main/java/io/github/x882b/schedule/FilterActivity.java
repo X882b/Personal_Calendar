@@ -3,13 +3,18 @@ package io.github.x882b.schedule;
 import android.app.Activity;
 import android.appwidget.AppWidgetManager;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.TypedValue;
+import android.view.View;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
-/** Opened from a widget's category label: pick what that one widget shows. */
+/**
+ * Opened from a widget's label: pick who and which category that one widget shows.
+ * Every tap applies straight away; Done (or tapping outside) closes.
+ */
 public class FilterActivity extends Activity {
 
     @Override
@@ -21,34 +26,52 @@ public class FilterActivity extends Activity {
 
         final Store s = new Store(this);
         Agenda g = Agenda.parse(s.readDoc());
-        String current = g.cat(s.widgetCat(id)) == null ? "" : s.widgetCat(id);
-        RadioGroup group = findViewById(R.id.choices);
-        add(group, "", "Everything", current);
-        for (Agenda.Category c : g.cats) add(group, c.id, c.name, current);
+        String who = s.widgetWho(id), cat = g.cat(s.widgetCat(id)) == null ? "" : s.widgetCat(id);
+        final int blue = 0xFF2F6FD0;
+
+        RadioGroup people = findViewById(R.id.people);
+        add(people, "all", "Both", who, blue);
+        add(people, "a", g.name("a"), who, color(g.a.color, blue));
+        add(people, "b", g.name("b"), who, color(g.b.color, blue));
+        if (people.getCheckedRadioButtonId() == View.NO_ID) ((RadioButton) people.getChildAt(0)).setChecked(true);
+
+        RadioGroup cats = findViewById(R.id.choices);
+        add(cats, "", "Everything", cat, blue);
+        for (Agenda.Category c : g.cats) add(cats, c.id, c.name, cat, blue);
+
         ((TextView) findViewById(R.id.hint)).setText(g.cats.isEmpty()
                 ? "Categories show up here once the calendar has loaded."
-                : "Each widget remembers its own choice, so one can show everything and another just the work schedule.");
+                : "Each widget remembers its own choice, so one can show everything and another just one person's work schedule.");
 
-        group.setOnCheckedChangeListener((rg, checked) -> {
-            RadioButton b = rg.findViewById(checked);
-            if (b == null) return;
-            s.setWidgetCat(id, (String) b.getTag());
-            ScheduleWidget.redrawAll(getApplicationContext(), false);
-            finish();
-        });
+        people.setOnCheckedChangeListener((rg, checked) -> apply(rg, checked, v -> s.setWidgetWho(id, v)));
+        cats.setOnCheckedChangeListener((rg, checked) -> apply(rg, checked, v -> s.setWidgetCat(id, v)));
+        findViewById(R.id.done).setOnClickListener(v -> finish());
     }
 
-    private void add(RadioGroup group, String catId, String label, String current) {
+    private interface Save { void to(String value); }
+
+    private void apply(RadioGroup group, int checked, Save save) {
+        RadioButton b = group.findViewById(checked);
+        if (b == null) return;
+        save.to((String) b.getTag());
+        ScheduleWidget.redrawAll(getApplicationContext(), false);
+    }
+
+    private void add(RadioGroup group, String value, String label, String current, int tint) {
         RadioButton b = new RadioButton(this);
-        b.setId(group.getChildCount() + 1);
-        b.setTag(catId);
+        b.setId(View.generateViewId());
+        b.setTag(value);
         b.setText(label);
         b.setTextColor(0xFFE8E6E1);
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
-        b.setButtonTintList(ColorStateList.valueOf(0xFF2F6FD0));
-        int pad = Math.round(10 * getResources().getDisplayMetrics().density);
+        b.setButtonTintList(ColorStateList.valueOf(tint));
+        int pad = Math.round(8 * getResources().getDisplayMetrics().density);
         b.setPadding(pad, pad, pad, pad);
         group.addView(b);
-        if (catId.equals(current)) b.setChecked(true);
+        if (value.equals(current)) b.setChecked(true);
+    }
+
+    private static int color(String hex, int fallback) {
+        try { return Color.parseColor(hex); } catch (IllegalArgumentException e) { return fallback; }
     }
 }

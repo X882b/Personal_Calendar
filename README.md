@@ -94,9 +94,11 @@ sharing (step 3) to be on. Do this on each phone.
 
 - Tap a day or an event to open Schedule; **+** opens a new event.
 - **Choose what it shows:** tap the label under the date (**Everything ▾**)
-  and pick a category, e.g. **Work schedule**. The label turns light so you
-  can see the widget is filtered. Each widget remembers its own choice, so
-  you can place two: one with everything, one with just the work schedule.
+  and pick a person, a category, or both, e.g. **Ana · Work schedule**.
+  Events you share ("Both") still show under each person. The label turns
+  light so you can see the widget is filtered. Each widget remembers its own
+  choice, so you can place two: one with everything, one with just her work
+  schedule.
 - It refreshes about every 30 minutes (Android won't allow more often), and
   straight away with **↻**. A change made on one phone shows on the other
   phone's widget within that time.

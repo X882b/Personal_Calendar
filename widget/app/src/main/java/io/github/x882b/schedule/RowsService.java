@@ -54,7 +54,7 @@ public class RowsService extends RemoteViewsService {
             now = String.format(Locale.ROOT, "%02d:%02d", t.getHour(), t.getMinute());
             Store s = new Store(c);
             String json = s.readDoc();
-            g = Agenda.parse(json).only(s.widgetCat(widgetId));
+            g = Agenda.parse(json).only(s.widgetCat(widgetId), s.widgetWho(widgetId));
             rows = json.isEmpty() ? new ArrayList<>() : g.upcoming(today, DAYS_AHEAD);
         }
 
