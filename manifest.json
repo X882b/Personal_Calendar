@@ -1,7 +1,8 @@
 {
-  "name": "Schedule",
-  "short_name": "Schedule",
-  "description": "A shared calendar for two",
+  "name": "Agenda",
+  "short_name": "Agenda",
+  "description": "Un calendario compartido para dos",
+  "lang": "es",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -14,6 +15,6 @@
     { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "New event", "url": "./index.html#new", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+    { "name": "Nuevo evento", "url": "./index.html#new", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
   ]
 }

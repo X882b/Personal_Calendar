@@ -76,14 +76,14 @@ public class ScheduleWidget extends AppWidgetProvider {
         for (int id : ids) {
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
             v.setTextViewText(R.id.date, Agenda.longDay(LocalDate.now()));
-            v.setTextViewText(R.id.status, busy ? "updating…" : status(s));
+            v.setTextViewText(R.id.status, busy ? "actualizando…" : status(s));
 
-            // the filter label: outlined for everything, filled when narrowed ("Ana · Work schedule")
+            // the filter label: outlined for everything, filled when narrowed ("Ana · Horario laboral")
             Agenda.Category cat = g.cat(s.widgetCat(id));
             String who = s.widgetWho(id);
             boolean one = "a".equals(who) || "b".equals(who), narrowed = one || cat != null;
             String label = (one ? g.name(who) : "") + (one && cat != null ? " · " : "") + (cat != null ? cat.name : "");
-            v.setTextViewText(R.id.filter, (narrowed ? label : "Everything") + " ▾");
+            v.setTextViewText(R.id.filter, (narrowed ? label : "Todo") + " ▾");
             v.setInt(R.id.filter, "setBackgroundResource", narrowed ? R.drawable.chip_on : R.drawable.chip);
             v.setTextColor(R.id.filter, narrowed ? 0xFF111316 : 0xFFE8E6E1);
             v.setViewVisibility(R.id.filter, s.connected() ? View.VISIBLE : View.GONE);
@@ -96,8 +96,8 @@ public class ScheduleWidget extends AppWidgetProvider {
             rows.setData(Uri.parse(rows.toUri(Intent.URI_INTENT_SCHEME)));   // one adapter per widget
             v.setRemoteAdapter(R.id.list, rows);
             v.setEmptyView(R.id.list, R.id.empty);
-            v.setTextViewText(R.id.empty, !s.connected() ? "Not connected yet.\nTap to set up."
-                    : s.error().isEmpty() ? "Loading…" : "Couldn't load the calendar:\n" + s.error());
+            v.setTextViewText(R.id.empty, !s.connected() ? "Aún sin conectar.\nToca para configurar."
+                    : s.error().isEmpty() ? "Cargando…" : "No se pudo cargar el calendario:\n" + s.error());
 
             PendingIntent setup = PendingIntent.getActivity(c, 0, new Intent(c, SetupActivity.class),
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
@@ -123,13 +123,13 @@ public class ScheduleWidget extends AppWidgetProvider {
     }
 
     private static String status(Store s) {
-        if (!s.connected()) return "not connected";
+        if (!s.connected()) return "sin conectar";
         long t = s.fetched();
         String when = "";
         if (t > 0) {
             boolean today = new SimpleDateFormat("yyyyMMdd", Locale.ROOT).format(new Date(t))
                     .equals(new SimpleDateFormat("yyyyMMdd", Locale.ROOT).format(new Date()));
-            when = "updated " + new SimpleDateFormat(today ? "HH:mm" : "EEE HH:mm", Locale.ENGLISH).format(new Date(t));
+            when = "actualizado " + new SimpleDateFormat(today ? "HH:mm" : "EEE HH:mm", new Locale("es")).format(new Date(t));
         }
         if (s.error().isEmpty()) return when;
         return when.isEmpty() ? s.error() : s.error() + " · " + when;

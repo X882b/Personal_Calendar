@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -8,7 +8,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Schedule</title>
+<title>Agenda</title>
 <style>
 :root{
   --steel:#1b1d21;
@@ -106,6 +106,13 @@ label{display:block;font-size:13px;color:var(--dim);margin-bottom:4px}
 .newcat{display:flex;gap:8px;margin-top:8px}
 .newcat .btn{padding:10px 16px}
 .catrow{display:flex;gap:8px;align-items:center}
+.subs{display:grid;gap:6px;margin:-4px 0 4px 14px;padding-left:10px;border-left:2px solid var(--edge)}
+.subrow{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center}
+.subrow input{padding:8px;min-width:0}
+.subrow [data-f="name"]{grid-column:1 / -1}
+.subrow + .subrow{margin-top:6px}
+.subs .linkbtn{justify-self:start;padding:4px 0}
+.pill.subp small{color:inherit;opacity:.75;font-size:12px}
 .x{color:var(--dim);padding:9px 11px;font-size:15px;line-height:1;border-radius:6px;flex:none}
 .x.warn{color:#fff;background:var(--red)}
 .xstep{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -230,20 +237,20 @@ code{font-size:13px;background:var(--steel);border:1px solid var(--edge);border-
 
 <header id="top">
   <div class="grow">
-    <h2 id="title">Upcoming</h2>
+    <h2 id="title">Próximos</h2>
     <div class="day" id="subtitle"></div>
   </div>
-  <button id="sync" data-act="settings" aria-label="Sync status"></button>
-  <button id="gear" data-act="settings" aria-label="Settings">⚙</button>
+  <button id="sync" data-act="settings" aria-label="Estado de la sincronización"></button>
+  <button id="gear" data-act="settings" aria-label="Ajustes">⚙</button>
 </header>
 
 <main id="view"></main>
 
-<button id="add" class="btn" data-act="new">+ Event</button>
+<button id="add" class="btn" data-act="new">+ Evento</button>
 
 <nav>
-  <button data-tab="up" class="on"><b>☰</b>Upcoming</button>
-  <button data-tab="month"><b>▦</b>Month</button>
+  <button data-tab="up" class="on"><b>☰</b>Próximos</button>
+  <button data-tab="month"><b>▦</b>Mes</button>
 </nav>
 
 <div id="sheet"><div id="sheetbox"></div></div>
@@ -266,22 +273,26 @@ function writeJSON(k, v){
 const COLORS = ["#3fb0e8","#ef6f8e","#4cc38a","#e9a23b","#a487f0","#2fc4c4","#f07a4b","#c6cf4a"];
 const PEOPLE = ["a","b"];
 // Fixed ids and u:0, so two phones that start fresh hold the same three records, not six.
-const SEED_CATS = [["work","Work schedule"],["doctors","Doctors"],["birthdays","Birthdays"]];
+const SEED_CATS = [["work","Horario laboral"],["doctors","Médicos"],["birthdays","Cumpleaños"]];
+// Subcategories: presets with their own hours. Fixed ids, so two phones agree.
+const SEED_SUBS = () => [{id:"m", name:"Mañana", from:"07:30", to:"15:30"}, {id:"t", name:"Tarde", from:"15:30", to:"23:30"}];
+// the names they had before the app was in Spanish; boot renames them once
+const OLD_SEED_NAMES = {work:"Work schedule", doctors:"Doctors", birthdays:"Birthdays"};
 const blankDoc = () => ({
   people:[{id:"a", name:"", color:COLORS[0], u:0}, {id:"b", name:"", color:COLORS[1], u:0}],
-  cats:SEED_CATS.map(([id, name])=>({id, name, free:"", u:0})),
+  cats:SEED_CATS.map(([id, name])=>Object.assign({id, name, free:"", u:0}, id === "work" ? {subs:SEED_SUBS()} : {})),
   events:[]
 });
 // S is shared between the phones. Every record carries u (last change, ms);
 // on sync the newer copy of each record wins. Deletes leave a tombstone.
 let S = blankDoc();
 // L belongs to this phone only.
-let L = {me:"", filter:"all", cat:"", tab:"up", lang:"en", xkind:"m", repo:"", token:"", dirty:false, last:0};
+let L = {me:"", filter:"all", cat:"", tab:"up", lang:"es", xkind:"m", repo:"", token:"", dirty:false, last:0};
 let month = "", selDay = "", ahead = 60, edits = 0;
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const person = id => S.people.find(p=>p.id === id) || blankDoc().people[id === "b" ? 1 : 0];
-const name = id => person(id).name || (id === "b" ? "Person 2" : "Person 1");
+const name = id => person(id).name || (id === "b" ? "Persona 2" : "Persona 1");
 const stamp = old => Math.max(Date.now(), old && old.u ? old.u + 1 : 0);
 const cats = () => S.cats.filter(c=>!c.del).sort((x,y)=>x.name.localeCompare(y.name));
 const catById = id => id ? S.cats.find(c=>c.id === id && !c.del) || null : null;
@@ -292,6 +303,28 @@ function saveLocal(){ writeJSON(LOCAL_KEY, L); }
 function changed(){
   edits++; L.dirty = true;
   saveDoc(); saveLocal(); render(); scheduleSync(1200);
+}
+// Shifts saved without a title carry the category's name: they're renamed along with it.
+function renameCat(c, n){
+  const was = c.name;
+  Object.assign(c, {name:n, u:stamp(c)});
+  S.events.forEach((ev, i)=>{
+    if(!ev.del && ev.cat === c.id && ev.title === was) S.events[i] = Object.assign({}, ev, {title:n, by:L.me, u:stamp(ev)});
+  });
+}
+// The three starting categories had English names before the app was in Spanish.
+// Runs at boot and after every sync, so a copy that arrives from the other phone is caught too.
+function spanishSeeds(){
+  let n = 0;
+  S.cats.forEach(c=>{
+    const es = (SEED_CATS.find(x=>x[0] === c.id) || [])[1];
+    if(!c.del && es && c.name === OLD_SEED_NAMES[c.id]){
+      renameCat(c, es);
+      if(c.id === "work" && !c.subs) c.subs = SEED_SUBS();
+      n++;
+    }
+  });
+  return n;
 }
 function upsert(rec, list){
   const arr = S[list || "events"], i = arr.findIndex(e=>e.id === rec.id);
@@ -309,13 +342,14 @@ const ymd = t => t.getUTCFullYear()+"-"+pad(t.getUTCMonth()+1)+"-"+pad(t.getUTCD
 const addDays = (s, n) => { const t = D(s); t.setUTCDate(t.getUTCDate()+n); return ymd(t); };
 const diffDays = (a, b) => Math.round((D(b) - D(a)) / 864e5);
 const weekday = s => D(s).getUTCDay();
-const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const SHORT = ["dom","lun","mar","mié","jue","vie","sáb"];
+const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const cap = s => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 const mon = s => MONTHS[+s.slice(5,7)-1].slice(0,3);
 const yearTail = s => s.slice(0,4) === today().slice(0,4) ? "" : " " + s.slice(0,4);
 const pretty = s => SHORT[weekday(s)]+" "+(+s.slice(8))+" "+mon(s)+yearTail(s);
-const longDay = s => DAYS[weekday(s)]+" "+(+s.slice(8))+" "+MONTHS[+s.slice(5,7)-1]+yearTail(s);
+const longDay = s => cap(DAYS[weekday(s)])+" "+(+s.slice(8))+" de "+MONTHS[+s.slice(5,7)-1]+yearTail(s);
 const hm = ms => { const d = new Date(ms); return pad(d.getHours())+":"+pad(d.getMinutes()); };
 function addMonths(ym, n){
   const t = new Date(Date.UTC(+ym.slice(0,4), +ym.slice(5,7)-1+n, 1));
@@ -323,8 +357,8 @@ function addMonths(ym, n){
 }
 
 /* ---------- which events fall on a day ---------- */
-const REPEATS = [["","No"],["w","Weekly"],["2w","Every 2 weeks"],["m","Monthly"],["y","Yearly"]];
-const REPEAT_TEXT = {w:"every week", "2w":"every 2 weeks", m:"every month", y:"every year"};
+const REPEATS = [["","No"],["w","Cada semana"],["2w","Cada 2 semanas"],["m","Cada mes"],["y","Cada año"]];
+const REPEAT_TEXT = {w:"cada semana", "2w":"cada 2 semanas", m:"cada mes", y:"cada año"};
 const spanOf = ev => ev.last && ev.last > ev.date ? diffDays(ev.date, ev.last) : 0;
 function startsOn(ev, s){
   const n = diffDays(ev.date, s);
@@ -383,7 +417,9 @@ function evRow(o, day){
   // a multi-day event shows its hours on every day it covers
   const ev = o.ev, timed = !!ev.from;
   const bits = [whoText(ev.who)], c = catById(ev.cat);
+  const sb = c && ev.sub ? (c.subs || []).find(s=>s.id === ev.sub) : null;
   if(c && c.name !== ev.title) bits.push(esc(c.name));
+  if(sb && sb.name) bits.push(esc(sb.name));
   if(ev.repeat) bits.push(REPEAT_TEXT[ev.repeat] || "");
   if(ev.note) bits.push(esc(ev.note.split("\n")[0]));
   const now = today();
@@ -391,7 +427,7 @@ function evRow(o, day){
   return `<button class="ev ${past ? "past" : ""}" data-act="edit" data-id="${ev.id}" data-d="${o.s}">
     ${timed
       ? `<span class="tm">${ev.from}${ev.to ? `<small>${ev.to}</small>` : ""}</span>`
-      : `<span class="tm all">all day</span>`}
+      : `<span class="tm all">todo el día</span>`}
     <i class="bar ${ev.who}"></i>
     <span><span class="et">${esc(ev.title)}</span><span class="es">${bits.join(" · ")}</span></span>
   </button>`;
@@ -399,11 +435,11 @@ function evRow(o, day){
 function chips(){
   const one = (v, t, cls) => `<button class="pill ${cls} ${L.filter === v ? "on" : ""}" data-act="filter" data-v="${v}">${t}</button>`;
   const cur = catById(L.cat) ? L.cat : "";
-  const cs = [["", "All categories"]].concat(cats().map(c=>[c.id, esc(c.name)]));
+  const cs = [["", "Todas las categorías"]].concat(cats().map(c=>[c.id, esc(c.name)]));
   return `<div class="chips">
-    ${one("all", "All", "")}
+    ${one("all", "Todos", "")}
     ${PEOPLE.map(p=>one(p, `<i class="dot ${p}"></i>${esc(name(p))}`, p)).join("")}
-    <button class="pill xbtn" data-act="xopen">Export</button>
+    <button class="pill xbtn" data-act="xopen">Exportar</button>
   </div>
   ${cs.length > 1 ? `<div class="chips cats">${cs.map(([v, t])=>
     `<button class="pill ${cur === v ? "on" : ""}" data-act="catf" data-v="${v}">${t}</button>`).join("")}</div>` : ""}`;
@@ -411,39 +447,39 @@ function chips(){
 
 /* --- Upcoming: the next seven days always, after that only days with something on --- */
 function renderUp(){
-  T.textContent = "Upcoming";
+  T.textContent = "Próximos";
   const list = visible(), start = today();
   let html = chips(), later = 0;
   for(let i = 0; i < ahead; i++){
     const d = addDays(start, i), evs = dayEvents(list, d);
     if(i >= 7 && !evs.length) continue;
     if(i >= 7) later++;
-    const head = i === 0 ? "Today" : i === 1 ? "Tomorrow" : i < 7 ? DAYS[weekday(d)] : pretty(d);
-    const side = i < 7 ? (+d.slice(8))+" "+mon(d) : i < 14 ? "in "+i+" days" : "in "+Math.round(i/7)+" weeks";
+    const head = i === 0 ? "Hoy" : i === 1 ? "Mañana" : i < 7 ? cap(DAYS[weekday(d)]) : cap(pretty(d));
+    const side = i < 7 ? (+d.slice(8))+" "+mon(d) : i < 14 ? "en "+i+" días" : "en "+Math.round(i/7)+" semanas";
     html += `<section class="dayb ${i === 0 ? "today" : ""} ${evs.length ? "" : "free"}">
       <div class="dayh">
-        <h3>${head}</h3><span class="muted">${side}${evs.length ? "" : " · free"}</span>
-        <button class="plus" data-act="new" data-d="${d}" aria-label="Add on ${pretty(d)}">+</button>
+        <h3>${head}</h3><span class="muted">${side}${evs.length ? "" : " · libre"}</span>
+        <button class="plus" data-act="new" data-d="${d}" aria-label="Añadir el ${pretty(d)}">+</button>
       </div>
       ${evs.map(o=>evRow(o, d)).join("")}
     </section>`;
   }
-  if(!list.length) html += `<div class="empty">Nothing planned yet.<br>Tap <b>+ Event</b> to add the first one.</div>`;
-  else if(!later) html += `<div class="empty">Nothing else in the next ${ahead} days.</div>`;
-  html += `<button class="btn ghost wide" data-act="more">Look further ahead</button>`;
+  if(!list.length) html += `<div class="empty">Todavía no hay nada.<br>Toca <b>+ Evento</b> para añadir el primero.</div>`;
+  else if(!later) html += `<div class="empty">Nada más en los próximos ${ahead} días.</div>`;
+  html += `<button class="btn ghost wide" data-act="more">Ver más adelante</button>`;
   view.innerHTML = html;
 }
 
 /* --- Month: grid with a dot per event, the chosen day listed underneath --- */
 function renderMonth(){
-  T.textContent = "Month";
+  T.textContent = "Mes";
   if(!month) month = today().slice(0,7);
   if(!selDay || selDay.slice(0,7) !== month) selDay = today().slice(0,7) === month ? today() : month+"-01";
   const list = visible(), first = month+"-01", now = today();
   const lead = (weekday(first) + 6) % 7;          // weeks start on Monday
   const len = diffDays(first, addMonths(month, 1)+"-01");
   const cells = Math.ceil((lead + len) / 7) * 7;
-  let grid = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(w=>`<div class="wd">${w}</div>`).join("");
+  let grid = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].map(w=>`<div class="wd">${w}</div>`).join("");
   for(let i = 0; i < cells; i++){
     const d = addDays(first, i - lead), evs = dayEvents(list, d);
     const cls = [d.slice(0,7) !== month ? "out" : "", d === now ? "now" : "", d === selDay ? "sel" : "", d < now ? "gone" : ""].join(" ");
@@ -457,18 +493,18 @@ function renderMonth(){
   const evs = dayEvents(list, selDay);
   view.innerHTML = `${chips()}
     <div class="mhead">
-      <button class="arrow" data-act="month" data-v="-1" aria-label="Previous month">‹</button>
-      <h2>${MONTHS[+month.slice(5)-1]} ${month.slice(0,4)}</h2>
-      ${month !== now.slice(0,7) ? `<button class="pill" data-act="month" data-v="0">Today</button>` : ""}
-      <button class="arrow" data-act="month" data-v="1" aria-label="Next month">›</button>
+      <button class="arrow" data-act="month" data-v="-1" aria-label="Mes anterior">‹</button>
+      <h2>${cap(MONTHS[+month.slice(5)-1])} ${month.slice(0,4)}</h2>
+      ${month !== now.slice(0,7) ? `<button class="pill" data-act="month" data-v="0">Hoy</button>` : ""}
+      <button class="arrow" data-act="month" data-v="1" aria-label="Mes siguiente">›</button>
     </div>
     <div class="grid">${grid}</div>
     <section class="dayb selday">
       <div class="dayh">
-        <h3>${longDay(selDay)}</h3><span class="muted">${selDay === now ? "today" : ""}</span>
-        <button class="plus" data-act="new" data-d="${selDay}" aria-label="Add on ${pretty(selDay)}">+</button>
+        <h3>${longDay(selDay)}</h3><span class="muted">${selDay === now ? "hoy" : ""}</span>
+        <button class="plus" data-act="new" data-d="${selDay}" aria-label="Añadir el ${pretty(selDay)}">+</button>
       </div>
-      ${evs.length ? evs.map(o=>evRow(o, selDay)).join("") : `<div class="empty">Free</div>`}
+      ${evs.length ? evs.map(o=>evRow(o, selDay)).join("") : `<div class="empty">Libre</div>`}
     </section>`;
 }
 
@@ -499,58 +535,78 @@ function seg(key, options, value, extra){
     `<button class="pill ${cls||""} ${v === value ? "on" : ""}" data-act="seg" data-v="${v}">${t}</button>`).join("")}${extra||""}</div>`;
 }
 const segVal = key => { const el = box.querySelector(`[data-seg="${key}"]`); return el ? el.dataset.val : ""; };
-const whoOptions = () => [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"], ["ab", "Both", "ab"]];
+const whoOptions = () => [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"], ["ab", "Los dos", "ab"]];
 
 function eventSheet(id, day){
   const old = id ? S.events.find(e=>e.id === id) : null;
   const ev = old || {title:"", who:L.me || "a", cat:catById(L.cat) ? L.cat : "", date:day || today(), last:"", from:"", to:"", repeat:"", until:"", note:""};
   const occ = day || ev.date;
-  const catOpts = [["", "None"]].concat(cats().map(c=>[c.id, esc(c.name)]));
-  openSheet(`<h2>${old ? "Edit" : "New event"}</h2>
+  const catOpts = [["", "Ninguna"]].concat(cats().map(c=>[c.id, esc(c.name)]));
+  openSheet(`<h2>${old ? "Editar" : "Nuevo evento"}</h2>
     <div class="stack">
-      <div><label>What</label><input id="f-title" value="${esc(ev.title)}" placeholder="Dentist, dinner, trip…" autocomplete="off" enterkeyhint="done"></div>
-      <div><label>Who</label>${seg("who", whoOptions(), ev.who)}</div>
-      <div><label>Category</label>${seg("cat", catOpts, catById(ev.cat) ? ev.cat : "", `<button class="pill" data-act="catNew">+ New</button>`)}
-        <div class="newcat" id="newcat" hidden><input id="f-newcat" placeholder="New category" autocomplete="off" enterkeyhint="done"><button class="btn" data-act="catAdd">Add</button></div>
-        <div class="muted">With a category, the title can stay empty: it takes the category's name.</div></div>
+      <div><label>Qué</label><input id="f-title" value="${esc(ev.title)}" placeholder="Dentista, cena, viaje…" autocomplete="off" enterkeyhint="done"></div>
+      <div><label>Quién</label>${seg("who", whoOptions(), ev.who)}</div>
+      <div><label>Categoría</label>${seg("cat", catOpts, catById(ev.cat) ? ev.cat : "", `<button class="pill" data-act="catNew">+ Nueva</button>`)}
+        <div class="newcat" id="newcat" hidden><input id="f-newcat" placeholder="Nueva categoría" autocomplete="off" enterkeyhint="done"><button class="btn" data-act="catAdd">Añadir</button></div>
+        <div class="muted">Con categoría, el título puede quedar vacío: toma el nombre de la categoría.</div></div>
+      <div id="subs">${subPills(catById(ev.cat) ? ev.cat : "")}</div>
       <div class="two">
-        <div><label>Day</label><input id="f-date" type="date" value="${ev.date}"></div>
-        <div><label>Last day (trips)</label><input id="f-last" type="date" value="${ev.last||""}"></div>
+        <div><label>Día</label><input id="f-date" type="date" value="${ev.date}"></div>
+        <div><label>Último día (varios días)</label><input id="f-last" type="date" value="${ev.last||""}"></div>
       </div>
       <div class="two">
-        <div><label>From</label><input id="f-from" type="time" value="${ev.from||""}"></div>
-        <div><label>To</label><input id="f-to" type="time" value="${ev.to||""}"></div>
+        <div><label>Desde</label><input id="f-from" type="time" value="${ev.from||""}"></div>
+        <div><label>Hasta</label><input id="f-to" type="time" value="${ev.to||""}"></div>
       </div>
-      <div class="muted">No time means all day. <button class="linkbtn" data-act="clearTime">Clear times</button></div>
-      <div><label>Repeat</label>${seg("repeat", REPEATS, ev.repeat||"")}</div>
-      <div id="untilrow" ${ev.repeat ? "" : "hidden"}><label>Repeat until (optional)</label><input id="f-until" type="date" value="${ev.until||""}"></div>
-      <div><label>Note</label><textarea id="f-note" rows="2" placeholder="Optional">${esc(ev.note||"")}</textarea></div>
-      <button class="btn wide" data-act="saveEv" data-id="${old ? old.id : ""}">Save</button>
+      <div class="muted">Sin hora es todo el día. <button class="linkbtn" data-act="clearTime">Quitar horas</button></div>
+      <div><label>Repetir</label>${seg("repeat", REPEATS, ev.repeat||"")}</div>
+      <div id="untilrow" ${ev.repeat ? "" : "hidden"}><label>Repetir hasta (opcional)</label><input id="f-until" type="date" value="${ev.until||""}"></div>
+      <div><label>Nota</label><textarea id="f-note" rows="2" placeholder="Opcional">${esc(ev.note||"")}</textarea></div>
+      <button class="btn wide" data-act="saveEv" data-id="${old ? old.id : ""}">Guardar</button>
       ${old && old.repeat ? `<div class="two">
-          <button class="btn ghost" data-act="skipDay" data-id="${old.id}" data-d="${occ}">Remove ${pretty(occ)} only</button>
-          <button class="btn ghost" data-act="delEv" data-id="${old.id}">Delete every time</button>
+          <button class="btn ghost" data-act="skipDay" data-id="${old.id}" data-d="${occ}">Quitar solo el ${pretty(occ)}</button>
+          <button class="btn ghost" data-act="delEv" data-id="${old.id}">Borrar todas</button>
         </div>`
-      : old ? `<button class="btn ghost wide" data-act="delEv" data-id="${old.id}">Delete</button>` : ""}
-      ${old && old.by ? `<div class="foot">Last changed by ${esc(name(old.by))}, ${pretty(iso(new Date(old.u)))} ${hm(old.u)}</div>` : ""}
+      : old ? `<button class="btn ghost wide" data-act="delEv" data-id="${old.id}">Borrar</button>` : ""}
+      ${old && old.by ? `<div class="foot">Último cambio: ${esc(name(old.by))}, ${pretty(iso(new Date(old.u)))} ${hm(old.u)}</div>` : ""}
     </div>`);
   if(!old) setTimeout(()=>{ const t = $("f-title"); if(t) t.focus(); }, 60);
 }
 
-function saveEvent(id){
-  const c = catById(segVal("cat"));
-  // a shift in "Work schedule" needs no title of its own
-  const title = val("f-title").trim() || (c ? c.name : "");
+// Subcategory buttons in the event form: those of the chosen category, or of every
+// category when none is chosen. One tap saves the event with that subcategory's hours.
+function subPills(catId){
+  const c = catById(catId);
+  const list = (c ? [c] : cats()).flatMap(k=>(k.subs || []).filter(s=>s.name || s.from).map(s=>[k, s]));
+  if(!list.length) return "";
+  return `<label>${c ? "Subcategoría" : "Rápido"}</label><div class="seg">${list.map(([k, s])=>
+    `<button class="pill subp" data-act="subPick" data-id="${k.id}" data-v="${s.id}">${c ? "" : esc(k.name) + " · "}${esc(s.name)}${
+      s.from ? ` <small>${s.from}${s.to ? "–" + s.to : ""}</small>` : ""}</button>`).join("")}</div>
+    <div class="muted">Toca una para guardar el evento con su horario.</div>`;
+}
+
+function saveEvent(id, pick){
+  const c = catById(pick ? pick.cat : segVal("cat"));
+  const sb = pick && c ? (c.subs || []).find(s=>s.id === pick.sub) : null;
+  // a shift needs no title of its own; a title that is only a time gives way to the subcategory
+  let title = val("f-title").trim();
+  if(sb && /^\d{1,2}[:.]\d{2}/.test(title)) title = "";
+  title = title || (c ? c.name : "");
   if(!title){ const t = $("f-title"); t.classList.add("bad"); t.focus(); return; }
   const date = val("f-date") || today();
   let last = val("f-last"), from = val("f-from"), to = val("f-to");
+  if(sb){ from = sb.from || ""; to = sb.to || ""; }
   if(last <= date) last = "";
   if(!from && to){ from = to; to = ""; }
   const repeat = segVal("repeat");
   const until = repeat && val("f-until") >= date ? val("f-until") : "";
   const old = id ? S.events.find(e=>e.id === id) : null;
+  // an edit keeps its subcategory only while category and hours still match it
+  const kept = !sb && old && old.sub && c && old.cat === c.id ? (c.subs || []).find(s=>s.id === old.sub) : null;
+  const sub = sb ? sb.id : kept && kept.from === from && (kept.to || "") === to ? kept.id : "";
   // keep fields this version doesn't know about, in case a newer copy wrote them
   upsert(Object.assign({}, old || {skip:[]}, {
-    id: old ? old.id : uid(), title, who: segVal("who") || "a", cat: c ? c.id : "", date, last, from, to,
+    id: old ? old.id : uid(), title, who: segVal("who") || "a", cat: c ? c.id : "", sub, date, last, from, to,
     repeat, until, note: val("f-note").trim(), by: L.me, u: stamp(old)
   }));
   closeSheet(); changed();
@@ -567,77 +623,87 @@ function addCatInline(){
     wrap.querySelector('[data-act="catNew"]').insertAdjacentHTML("beforebegin", `<button class="pill" data-act="seg" data-v="${c.id}">${esc(c.name)}</button>`);
   wrap.dataset.val = c.id;
   wrap.querySelectorAll('[data-act="seg"]').forEach(x=>x.classList.toggle("on", x.dataset.v === c.id));
+  $("subs").innerHTML = subPills(c.id);
   inp.value = ""; $("newcat").hidden = true;
 }
 
 function welcomeSheet(){
-  openSheet(`<h2>Welcome</h2>
+  openSheet(`<h2>Bienvenidos</h2>
     <div class="stack">
-      <div class="muted">A calendar for two. Each of you gets a colour, and everything you add shows up on both phones once sharing is on.</div>
-      <div><label>First person</label><input id="w-a" value="${esc(person("a").name)}" placeholder="Name" autocomplete="off"></div>
-      <div><label>Second person</label><input id="w-b" value="${esc(person("b").name)}" placeholder="Name" autocomplete="off"></div>
-      <div><label>Whose phone is this?</label>${seg("me", [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], L.me)}</div>
-      <button class="btn wide" data-act="welcomeDone">Start</button>
+      <div class="muted">Un calendario para dos. Cada uno tiene su color, y todo lo que añadáis aparece en los dos móviles en cuanto se activa la sincronización.</div>
+      <div><label>Primera persona</label><input id="w-a" value="${esc(person("a").name)}" placeholder="Nombre" autocomplete="off"></div>
+      <div><label>Segunda persona</label><input id="w-b" value="${esc(person("b").name)}" placeholder="Nombre" autocomplete="off"></div>
+      <div><label>¿De quién es este móvil?</label>${seg("me", [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], L.me)}</div>
+      <button class="btn wide" data-act="welcomeDone">Empezar</button>
     </div>`);
 }
 
 function syncDetail(){
-  if(SY.kind === "off") return "Everything is saved on this phone only.";
-  if(SY.kind === "busy") return "Syncing…";
-  if(SY.kind === "wait") return "No connection. Changes are kept on this phone and go out when it's back.";
+  if(SY.kind === "off") return "Todo se guarda solo en este móvil.";
+  if(SY.kind === "busy") return "Sincronizando…";
+  if(SY.kind === "wait") return "Sin conexión. Los cambios se guardan en este móvil y se envían cuando vuelva.";
   if(SY.kind === "err") return SY.msg;
-  return "Shared through " + L.repo + "." + (L.last ? " Last synced " + hm(L.last) + "." : "");
+  return "Compartido a través de " + L.repo + "." + (L.last ? " Última sincronización: " + hm(L.last) + "." : "");
 }
 function settingsSheet(){
   const keep = {repo: val("f-repo") || L.repo, token: val("f-token")};
   const linked = !!(L.repo && L.token);
-  openSheet(`<h2>Settings</h2>
+  openSheet(`<h2>Ajustes</h2>
     <div class="stack">
-      <h3>People</h3>
+      <h3>Personas</h3>
       ${PEOPLE.map(p=>`<div>
-        <input id="s-name-${p}" value="${esc(person(p).name)}" placeholder="${p === "a" ? "First" : "Second"} person's name" autocomplete="off">
-        <div class="sws">${COLORS.map(c=>`<button class="sw ${c === person(p).color ? "on" : ""}" style="background:${c}" data-act="color" data-p="${p}" data-v="${c}" aria-label="Colour ${c}"></button>`).join("")}</div>
+        <input id="s-name-${p}" value="${esc(person(p).name)}" placeholder="Nombre de la ${p === "a" ? "primera" : "segunda"} persona" autocomplete="off">
+        <div class="sws">${COLORS.map(c=>`<button class="sw ${c === person(p).color ? "on" : ""}" style="background:${c}" data-act="color" data-p="${p}" data-v="${c}" aria-label="Color ${c}"></button>`).join("")}</div>
       </div>`).join("")}
-      <div><label>This phone belongs to</label>${seg("me", [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], L.me)}</div>
+      <div><label>Este móvil es de</label>${seg("me", [["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], L.me)}</div>
       <hr>
-      <h3>Categories</h3>
-      <div class="muted">Filter the calendar by category, or export one as an image. Shared by both phones.</div>
+      <h3>Categorías</h3>
+      <div class="muted">Filtra el calendario por categoría o expórtala como imagen. Debajo de cada una, sus subcategorías con su horario: en un evento nuevo, un toque y queda guardado. Compartidas entre los dos móviles.</div>
       ${cats().map(c=>`<div class="catrow">
         <input id="s-cat-${c.id}" data-cat="${c.id}" value="${esc(c.name)}" autocomplete="off">
-        <button class="x" data-act="catDel" data-id="${c.id}" aria-label="Delete ${esc(c.name)}">✕</button>
+        <button class="x" data-act="catDel" data-id="${c.id}" aria-label="Borrar ${esc(c.name)}">✕</button>
+      </div>
+      <div class="subs">
+        ${(c.subs || []).map(s=>`<div class="subrow">
+          <input data-sub="${c.id}" data-sid="${s.id}" data-f="name" value="${esc(s.name)}" placeholder="p. ej. Tarde" autocomplete="off">
+          <input type="time" data-sub="${c.id}" data-sid="${s.id}" data-f="from" value="${s.from || ""}" aria-label="Desde">
+          <input type="time" data-sub="${c.id}" data-sid="${s.id}" data-f="to" value="${s.to || ""}" aria-label="Hasta">
+          <button class="x" data-act="subDel" data-id="${c.id}" data-v="${s.id}" aria-label="Borrar ${esc(s.name)}">✕</button>
+        </div>`).join("")}
+        <button class="linkbtn" data-act="subAdd" data-id="${c.id}">+ Subcategoría</button>
       </div>`).join("")}
-      <button class="btn ghost wide" data-act="catCreate">+ Add category</button>
+      <button class="btn ghost wide" data-act="catCreate">+ Añadir categoría</button>
       <hr>
-      <h3>Sharing between phones</h3>
+      <h3>Compartir entre móviles</h3>
       <div class="muted" id="s-status">${esc(syncDetail())}</div>
       ${linked ? `<div class="two">
-          <button class="btn" data-act="syncNow">Sync now</button>
-          <button class="btn ghost" data-act="shareSetup">Set up other phone</button>
+          <button class="btn" data-act="syncNow">Sincronizar ahora</button>
+          <button class="btn ghost" data-act="shareSetup">Configurar el otro móvil</button>
         </div>
-        <div class="muted">"Set up other phone" makes a link that connects the other phone in one tap. It contains the access token, so send it only to each other.</div>
-        ${/Android/i.test(navigator.userAgent) ? `<button class="btn ghost wide" data-act="widget">Connect the phone widget</button>
-        <div class="muted">Opens the Schedule widget app already connected. Install that app first (see the README).</div>` : ""}
-        <button class="linkbtn" data-act="unlink">Disconnect this phone</button>`
+        <div class="muted">«Configurar el otro móvil» crea un enlace que conecta el otro móvil con un toque. Contiene el token de acceso: mandadlo solo entre vosotros.</div>
+        ${/Android/i.test(navigator.userAgent) ? `<button class="btn ghost wide" data-act="widget">Conectar el widget</button>
+        <div class="muted">Abre la app del widget ya conectada. Instálala primero (ver el README).</div>` : ""}
+        <button class="linkbtn" data-act="unlink">Desconectar este móvil</button>`
       : `<details>
-          <summary>How to turn sharing on</summary>
+          <summary>Cómo activar la sincronización</summary>
           <ol>
-            <li>On github.com, create a new <b>private</b> repository, for example <code>calendar-data</code>. Tick “Add a README file”.</li>
-            <li>Settings → Developer settings → Fine-grained tokens → Generate new token. Repository access: only that repository. Permissions → Contents: <b>Read and write</b>.</li>
-            <li>Type the repository's name and paste the token below, then tap Connect.</li>
-            <li>Then tap “Set up other phone” and send the link to the other phone.</li>
+            <li>En github.com, crea un repositorio nuevo <b>privado</b>, por ejemplo <code>calendar-data</code>. Marca «Add a README file».</li>
+            <li>Settings → Developer settings → Fine-grained tokens → Generate new token. Repository access: solo ese repositorio. Permissions → Contents: <b>Read and write</b>.</li>
+            <li>Escribe abajo el nombre del repositorio, pega el token y toca Conectar.</li>
+            <li>Después toca «Configurar el otro móvil» y manda el enlace al otro móvil.</li>
           </ol>
         </details>
-        <div><label>Private repository</label><input id="f-repo" value="${esc(keep.repo)}" placeholder="calendar-data" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div><label>Repositorio privado</label><input id="f-repo" value="${esc(keep.repo)}" placeholder="calendar-data" autocapitalize="off" autocorrect="off" spellcheck="false">
           <div class="muted" id="f-repo-hint"></div></div>
-        <div><label>Access token</label><input id="f-token" type="password" value="${esc(keep.token)}" placeholder="github_pat_…" autocomplete="off"></div>
-        <button class="btn wide" data-act="saveSync">Connect</button>`}
+        <div><label>Token de acceso</label><input id="f-token" type="password" value="${esc(keep.token)}" placeholder="github_pat_…" autocomplete="off"></div>
+        <button class="btn wide" data-act="saveSync">Conectar</button>`}
       <hr>
-      <h3>Backup</h3>
+      <h3>Copia de seguridad</h3>
       <div class="two">
-        <button class="btn ghost" data-act="export">Export file</button>
-        <button class="btn ghost" data-act="import">Import file</button>
+        <button class="btn ghost" data-act="export">Exportar archivo</button>
+        <button class="btn ghost" data-act="import">Importar archivo</button>
       </div>
-      <div class="muted">Import adds anything missing and never overwrites newer changes.</div>
+      <div class="muted">Importar añade lo que falte y nunca sobrescribe cambios más recientes.</div>
     </div>`);
 }
 
@@ -653,7 +719,6 @@ const XP = {
 let X = null;   // the export sheet's choices while it's open
 
 const fmt = (lang, opt) => new Intl.DateTimeFormat((LANGS.find(l=>l[0] === lang) || LANGS[0])[2], Object.assign({timeZone:"UTC"}, opt));
-const cap = s => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 const weekStart = s => addDays(s, -((weekday(s) + 6) % 7));
 const xfont = (px, style) => (style || "") + " " + px + "px " + XP.font;
 
@@ -666,7 +731,7 @@ function xrange(o){
 function xlabel(o){   // in the app's own words, for the sheet
   const r = xrange(o);
   if(o.kind === "w") return pretty(r.from) + " – " + pretty(r.to);
-  if(o.kind === "m") return MONTHS[+r.from.slice(5,7)-1] + " " + r.from.slice(0,4);
+  if(o.kind === "m") return cap(MONTHS[+r.from.slice(5,7)-1]) + " " + r.from.slice(0,4);
   return r.from.slice(0,4);
 }
 function xperiod(o){  // in the export's language, for the picture
@@ -711,7 +776,7 @@ function wrapText(g, text, max){
 
 function picture(o, free){
   const c = catById(o.cat);
-  const title = [c ? c.name : "", o.who !== "all" ? name(o.who) : ""].filter(Boolean).join(" · ") || "Schedule";
+  const title = [c ? c.name : "", o.who !== "all" ? name(o.who) : ""].filter(Boolean).join(" · ") || "Agenda";
   const lines = xlines(o, free), r = xrange(o);
   // the year leaves out the "free" word: on months nobody has planned yet it would mislead
   if(o.kind === "y") return yearPicture(o, title, xlines(o, ""), r);
@@ -824,22 +889,22 @@ function yearPicture(o, title, lines, r){
 
 function exportSheet(){
   const c = catById(X.cat);
-  openSheet(`<h2>Export image</h2>
+  openSheet(`<h2>Exportar imagen</h2>
     <div class="stack">
-      ${seg("xkind", [["w","Week"],["m","Month"],["y","Year"]], X.kind)}
+      ${seg("xkind", [["w","Semana"],["m","Mes"],["y","Año"]], X.kind)}
       <div class="xstep">
-        <button class="arrow" data-act="xstep" data-v="-1" aria-label="Earlier">‹</button>
+        <button class="arrow" data-act="xstep" data-v="-1" aria-label="Anterior">‹</button>
         <b>${xlabel(X)}</b>
-        <button class="arrow" data-act="xstep" data-v="1" aria-label="Later">›</button>
+        <button class="arrow" data-act="xstep" data-v="1" aria-label="Siguiente">›</button>
       </div>
-      <div><label>Category</label>${seg("xcat", [["", "All"]].concat(cats().map(k=>[k.id, esc(k.name)])), X.cat)}</div>
-      <div><label>Who</label>${seg("xwho", [["all", "Both"], ["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], X.who)}</div>
-      ${c ? `<div><label>Days with nothing on show</label><input id="x-free" value="${esc(c.free || "")}" placeholder="Nothing, or a word like free, libre" autocomplete="off"></div>` : ""}
-      <div><label>Language</label>${seg("xlang", LANGS.map(l=>[l[0], l[1]]), X.lang)}</div>
-      <img id="x-prev" class="xprev" alt="Preview of the image">
+      <div><label>Categoría</label>${seg("xcat", [["", "Todas"]].concat(cats().map(k=>[k.id, esc(k.name)])), X.cat)}</div>
+      <div><label>Quién</label>${seg("xwho", [["all", "Los dos"], ["a", esc(name("a")), "a"], ["b", esc(name("b")), "b"]], X.who)}</div>
+      ${c ? `<div><label>Los días sin nada muestran</label><input id="x-free" value="${esc(c.free || "")}" placeholder="Nada, o una palabra como libre" autocomplete="off"></div>` : ""}
+      <div><label>Idioma</label>${seg("xlang", LANGS.map(l=>[l[0], l[1]]), X.lang)}</div>
+      <img id="x-prev" class="xprev" alt="Vista previa de la imagen">
       <div class="two">
-        <button class="btn" data-act="xshare">Share</button>
-        <button class="btn ghost" data-act="xsave">Save image</button>
+        <button class="btn" data-act="xshare">Compartir</button>
+        <button class="btn ghost" data-act="xsave">Guardar imagen</button>
       </div>
     </div>`);
   drawPreview();
@@ -853,7 +918,7 @@ function xfile(){
   const c = catById(X.cat), r = xrange(X);
   const slug = s => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
   const key = X.kind === "y" ? r.from.slice(0,4) : X.kind === "m" ? r.from.slice(0,7) : r.from;
-  const fname = ["schedule", c ? slug(c.name) : "", X.who !== "all" ? slug(name(X.who)) : "", key].filter(Boolean).join("-") + ".jpg";
+  const fname = ["agenda", c ? slug(c.name) : "", X.who !== "all" ? slug(name(X.who)) : "", key].filter(Boolean).join("-") + ".jpg";
   return new Promise(res=>picture(X, xfree()).toBlob(b=>res(new File([b], fname, {type:"image/jpeg"})), "image/jpeg", .92));
 }
 function saveFile(f){
@@ -938,17 +1003,17 @@ async function gh(method, body){
 }
 function failure(status){
   const e = new Error(
-    status === 401 ? "GitHub refused the token. It may have expired: make a new one and connect again." :
-    status === 403 ? "The token isn't allowed to change " + L.repo + ". It needs Contents: Read and write." :
-    status === 404 ? "Can't find " + L.repo + ". Check the name, and that the token was given access to it." :
-    "GitHub answered " + status + ". Trying again later.");
+    status === 401 ? "GitHub rechazó el token. Puede haber caducado: crea uno nuevo y vuelve a conectar." :
+    status === 403 ? "El token no tiene permiso para cambiar " + L.repo + ". Necesita Contents: Read and write." :
+    status === 404 ? "No se encuentra " + L.repo + ". Revisa el nombre y que el token tenga acceso a él." :
+    "GitHub respondió " + status + ". Se reintentará más tarde.");
   e.http = status;
   return e;
 }
 function scheduleSync(ms){ clearTimeout(syncT); syncT = setTimeout(sync, ms || 0); }
 function setSync(kind, msg){ SY = {kind, msg: msg || ""}; drawSync(); }
 function drawSync(){
-  const label = {off:"Not shared", busy:"Syncing", ok:"Synced", wait:L.dirty ? "Waiting" : "Offline", err:"Sync problem"}[SY.kind];
+  const label = {off:"Sin compartir", busy:"Sincronizando", ok:"Sincronizado", wait:L.dirty ? "Pendiente" : "Sin conexión", err:"Error de sincronización"}[SY.kind];
   $("sync").innerHTML = `<i class="sdot ${SY.kind}"></i>${label}`;
   const st = $("s-status"); if(st) st.textContent = syncDetail();
 }
@@ -961,12 +1026,12 @@ async function sync(){
   const startEdits = edits;
   try{
     for(let tries = 0; ; tries++){
-      if(tries === 5) throw new Error("Both phones kept writing at the same moment. Trying again shortly.");
+      if(tries === 5) throw new Error("Los dos móviles escribían a la vez. Se reintentará enseguida.");
       const r = await gh("GET");
       let remote = null, sha = "";
       if(r.ok){
         const j = await r.json();
-        if(j.encoding !== "base64") throw new Error(FILE + " is too large to read.");
+        if(j.encoding !== "base64") throw new Error(FILE + " es demasiado grande para leerlo.");
         remote = normalize(JSON.parse(b64d(j.content)));
         sha = j.sha;
       }
@@ -984,6 +1049,7 @@ async function sync(){
       // edits made while we were waiting on the network are newer, so they survive this
       const before = serialize(S);
       S = merge(S, merged);
+      if(spanishSeeds()){ edits++; L.dirty = true; }   // an English-named copy came in from the other phone
       saveDoc();
       if(serialize(S) !== before) render();
       break;
@@ -992,7 +1058,7 @@ async function sync(){
     if(edits === startEdits) L.dirty = false; else again = true;
     setSync("ok");
   }catch(e){
-    if(e.http || e instanceof SyntaxError || /too large|same moment/.test(e.message)) setSync("err", e.message);
+    if(e.http || e instanceof SyntaxError || /demasiado grande|a la vez/.test(e.message)) setSync("err", e.message);
     else setSync("wait");   // fetch failed: no connection
   }finally{
     syncing = false;
@@ -1019,19 +1085,19 @@ async function connectSync(btn){
   const token = val("f-token").trim();
   let repo = cleanRepo(val("f-repo"));
   const say = (id, msg) => { $(id).classList.add("bad"); const h = $("f-repo-hint"); h.textContent = msg; h.classList.add("err"); };
-  if(!repo) return say("f-repo", "Type the repository's name, e.g. calendar-data.");
-  if(!token) return say("f-token", "Paste the access token as well.");
+  if(!repo) return say("f-repo", "Escribe el nombre del repositorio, p. ej. calendar-data.");
+  if(!token) return say("f-token", "Pega también el token de acceso.");
   if(!repo.includes("/")){
-    btn.textContent = "Checking…";
+    btn.textContent = "Comprobando…";
     let r = null, me = "";
     try{ r = await fetch("https://api.github.com/user", {cache:"no-store", headers:{Authorization:"Bearer " + token, Accept:"application/vnd.github+json"}}); }catch(e){}
     if(r && r.ok) me = ((await r.json().catch(()=>({}))).login) || "";
-    btn.textContent = "Connect";
-    if(!r) return say("f-repo", "No connection. Try again when you're online.");
-    if(!me) return say("f-token", "GitHub refused this token. Check that you copied all of it.");
+    btn.textContent = "Conectar";
+    if(!r) return say("f-repo", "Sin conexión. Inténtalo de nuevo cuando haya internet.");
+    if(!me) return say("f-token", "GitHub rechazó este token. Comprueba que lo copiaste entero.");
     repo = me + "/" + repo;
   }
-  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)) return say("f-repo", "That isn't a repository name. Write it like calendar-data, or your-name/calendar-data.");
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)) return say("f-repo", "Eso no es un nombre de repositorio. Escríbelo como calendar-data o tu-usuario/calendar-data.");
   L.repo = repo; L.token = token; L.dirty = true; saveLocal();
   sync().then(()=>{ if(sheet.classList.contains("on") && $("s-status")) settingsSheet(); });
   settingsSheet();
@@ -1069,6 +1135,7 @@ document.body.addEventListener("click", e=>{
     wrap.classList.remove("bad");
     wrap.querySelectorAll(".pill").forEach(x=>x.classList.toggle("on", x === b));
     if(wrap.dataset.seg === "repeat") $("untilrow").hidden = !v;
+    if(wrap.dataset.seg === "cat") $("subs").innerHTML = subPills(v);
     if(wrap.dataset.seg === "me" && $("s-status")){ L.me = v; saveLocal(); render(); }
     const k = wrap.dataset.seg;
     if(k === "xkind"){ X.kind = v; L.xkind = v; saveLocal(); exportSheet(); }
@@ -1079,12 +1146,12 @@ document.body.addEventListener("click", e=>{
   else if(a === "catNew"){ $("newcat").hidden = false; $("f-newcat").focus(); }
   else if(a === "catAdd") addCatInline();
   else if(a === "catCreate"){
-    const c = {id:uid(), name:"New category", free:"", u:Date.now()};
+    const c = {id:uid(), name:"Nueva categoría", free:"", u:Date.now()};
     S.cats.push(c); changed(); settingsSheet();
     const el = $("s-cat-" + c.id); if(el){ el.focus(); el.select(); }
   }
   else if(a === "catDel"){
-    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Delete"; b.classList.add("warn"); return; }
+    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Borrar"; b.classList.add("warn"); return; }
     const old = S.cats.find(c=>c.id === id); if(!old) return;
     // its events keep their place in the calendar, just without a category
     upsert({id, del:1, u:stamp(old)}, "cats");
@@ -1109,6 +1176,20 @@ document.body.addEventListener("click", e=>{
   });
   else if(a === "clearTime"){ $("f-from").value = ""; $("f-to").value = ""; }
   else if(a === "saveEv") saveEvent(id);
+  else if(a === "subPick") saveEvent(box.querySelector('[data-act="saveEv"]').dataset.id, {cat:id, sub:v});
+  else if(a === "subAdd"){
+    const c = catById(id); if(!c) return;
+    const s = {id:uid(), name:"", from:"", to:""};
+    Object.assign(c, {subs:(c.subs || []).concat(s), u:stamp(c)});
+    changed(); settingsSheet();
+    const el = box.querySelector(`[data-sid="${s.id}"][data-f="name"]`); if(el) el.focus();
+  }
+  else if(a === "subDel"){
+    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Borrar"; b.classList.add("warn"); return; }
+    const c = catById(id); if(!c) return;
+    Object.assign(c, {subs:(c.subs || []).filter(s=>s.id !== v), u:stamp(c)});
+    changed(); settingsSheet();
+  }
   else if(a === "skipDay"){
     const old = S.events.find(x=>x.id === id); if(!old) return;
     upsert(Object.assign({}, old, {skip:(old.skip||[]).concat(d), by:L.me, u:stamp(old)}));
@@ -1116,7 +1197,7 @@ document.body.addEventListener("click", e=>{
   }
   else if(a === "delEv"){
     // two taps, so a stray touch never deletes anything
-    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Tap again to delete"; b.classList.add("warn"); return; }
+    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Toca otra vez para borrar"; b.classList.add("warn"); return; }
     const old = S.events.find(x=>x.id === id); if(!old) return;
     upsert({id, del:1, by:L.me, u:stamp(old)});
     closeSheet(); changed();
@@ -1140,9 +1221,9 @@ document.body.addEventListener("click", e=>{
   else if(a === "syncNow") sync();
   else if(a === "shareSetup"){
     const link = setupLink();
-    if(navigator.share) navigator.share({title:"Schedule", text:"Open this on your phone to join our calendar:", url:link}).catch(()=>{});
-    else if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>alert("Link copied. Send it to the other phone."), ()=>prompt("Copy this link:", link));
-    else prompt("Copy this link:", link);
+    if(navigator.share) navigator.share({title:"Agenda", text:"Abre esto en tu móvil para unirte a nuestro calendario:", url:link}).catch(()=>{});
+    else if(navigator.clipboard) navigator.clipboard.writeText(link).then(()=>alert("Enlace copiado. Mándalo al otro móvil."), ()=>prompt("Copia este enlace:", link));
+    else prompt("Copia este enlace:", link);
   }
   else if(a === "widget") location.href = widgetLink();
   else if(a === "unlink"){
@@ -1152,7 +1233,7 @@ document.body.addEventListener("click", e=>{
     const blob = new Blob([serialize(S)], {type:"application/json"});
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "schedule-" + today() + ".json";
+    link.download = "agenda-" + today() + ".json";
     link.click();
   }
   else if(a === "import"){
@@ -1168,8 +1249,8 @@ document.body.addEventListener("click", e=>{
           const n = S.events.length;
           S = merge(S, normalize(data));
           changed(); settingsSheet();
-          alert("Imported. " + (S.events.length - n) + " new events.");
-        }catch(err){ alert("That file isn't a Schedule export."); }
+          alert("Importado. " + (S.events.length - n) + " eventos nuevos.");
+        }catch(err){ alert("Ese archivo no es una copia de Agenda."); }
       };
       rd.readAsText(f);
     };
@@ -1187,11 +1268,13 @@ document.body.addEventListener("change", e=>{
     const n = e.target.value.trim(), was = c.name;
     if(!n){ e.target.value = was; return; }
     if(n === was) return;
-    Object.assign(c, {name:n, u:stamp(c)});
-    // shifts saved without a title carry the category's name: rename them along with it
-    S.events.forEach((ev, i)=>{
-      if(!ev.del && ev.cat === c.id && ev.title === was) S.events[i] = Object.assign({}, ev, {title:n, by:L.me, u:stamp(ev)});
-    });
+    renameCat(c, n);
+    changed();
+  }
+  const sc = catById(e.target.dataset.sub);
+  if(sc){
+    const f = e.target.dataset.f, sid = e.target.dataset.sid, v = e.target.value.trim();
+    Object.assign(sc, {subs:(sc.subs || []).map(s=>s.id === sid ? Object.assign({}, s, {[f]:v}) : s), u:stamp(sc)});
     changed();
   }
   if(e.target.id === "x-free" && X){
@@ -1208,7 +1291,7 @@ document.body.addEventListener("input", e=>{
   const m = e.target.id.match(/^w-([ab])$/);
   if(m){
     const pill = box.querySelector(`[data-seg="me"] [data-v="${m[1]}"]`);
-    if(pill) pill.textContent = e.target.value.trim() || (m[1] === "a" ? "Person 1" : "Person 2");
+    if(pill) pill.textContent = e.target.value.trim() || (m[1] === "a" ? "Persona 1" : "Persona 2");
   }
 });
 document.body.addEventListener("keydown", e=>{
@@ -1263,7 +1346,10 @@ if("serviceWorker" in navigator){
     }catch(e){}
     history.replaceState(null, "", location.pathname + location.search);
   }
-  // long-press the home screen icon → "New event"
+  if(spanishSeeds()){ edits++; L.dirty = true; saveDoc(); }
+  if(!L.es){ L.lang = "es"; L.es = 1; }   // exports were in English before; now Spanish
+  saveLocal();
+  // long-press the home screen icon → "Nuevo evento"
   const quick = location.hash === "#new";
   if(quick) history.replaceState(null, "", location.pathname + location.search);
   render();

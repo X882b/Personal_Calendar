@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="This widget shows"
+            android:text="Este widget muestra"
             android:textColor="@color/chalk"
             android:textSize="19sp"
             android:textStyle="bold" />
@@ -25,7 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:text="Who"
+            android:text="Quién"
             android:textColor="@color/dim"
             android:textSize="13sp" />
 
@@ -38,7 +38,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="Category"
+            android:text="Categoría"
             android:textColor="@color/dim"
             android:textSize="13sp" />
 
@@ -62,7 +62,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:layout_marginTop="4dp"
-            android:text="Done"
+            android:text="Listo"
             android:textColor="#5B9BF0" />
     </LinearLayout>
 </ScrollView>

@@ -34,7 +34,7 @@ public class SetupActivity extends Activity {
         findViewById(R.id.refresh).setOnClickListener(v -> pull());
         findViewById(R.id.connect).setOnClickListener(v -> {
             if (!connect(Link.parse(link.getText().toString())))
-                toast("That isn't a setup link. In Schedule: ⚙ → Set up other phone.");
+                toast("Eso no es un enlace de configuración. En Agenda: ⚙ → Configurar el otro móvil.");
         });
         handle(getIntent());
         show();
@@ -56,7 +56,7 @@ public class SetupActivity extends Activity {
     private void handle(Intent i) {
         Uri u = i == null ? null : i.getData();
         if (u != null && "schedulewidget".equals(u.getScheme()) && !connect(Link.parse(u.toString())))
-            toast("That setup link couldn't be read.");
+            toast("No se pudo leer ese enlace de configuración.");
     }
 
     private boolean connect(Link l) {
@@ -68,7 +68,7 @@ public class SetupActivity extends Activity {
     }
 
     private void pull() {
-        status.setText("Updating…");
+        status.setText("Actualizando…");
         final Context app = getApplicationContext();
         new Thread(() -> {
             Sync.pull(app);
@@ -81,18 +81,18 @@ public class SetupActivity extends Activity {
         Store s = new Store(this);
         int placed = AppWidgetManager.getInstance(this)
                 .getAppWidgetIds(new ComponentName(this, ScheduleWidget.class)).length;
-        pin.setText(placed == 0 ? "Add the widget to the home screen" : "Add another widget");
+        pin.setText(placed == 0 ? "Añadir el widget a la pantalla de inicio" : "Añadir otro widget");
         if (!s.connected()) {
-            status.setText("Not connected yet.\n\nOpen Schedule → ⚙ → Connect the phone widget.");
+            status.setText("Aún sin conectar.\n\nAbre Agenda → ⚙ → Conectar el widget.");
             return;
         }
         int events = Agenda.parse(s.readDoc()).events.size();
         String when = s.fetched() > 0
-                ? android.text.format.DateFormat.format("EEE d MMM, HH:mm", s.fetched()).toString() : "never";
-        status.setText("Connected to " + s.repo() + ".\n"
-                + (s.error().isEmpty() ? "" : "Last try: " + s.error() + ".\n")
-                + "Last update: " + when + " (" + events + " events).\n"
-                + (placed == 0 ? "\nNow add the widget below." : "\nThe widget is on your home screen."));
+                ? android.text.format.DateFormat.format("EEE d MMM, HH:mm", s.fetched()).toString() : "nunca";
+        status.setText("Conectado a " + s.repo() + ".\n"
+                + (s.error().isEmpty() ? "" : "Último intento: " + s.error() + ".\n")
+                + "Última actualización: " + when + " (" + events + " eventos).\n"
+                + (placed == 0 ? "\nAhora añade el widget abajo." : "\nEl widget está en tu pantalla de inicio."));
     }
 
     private void pin() {
@@ -100,7 +100,7 @@ public class SetupActivity extends Activity {
         if (m != null && m.isRequestPinAppWidgetSupported()) {
             m.requestPinAppWidget(new ComponentName(this, ScheduleWidget.class), null, null);
         } else {
-            toast("Long-press an empty spot on the home screen → Widgets → Schedule.");
+            toast("Mantén pulsado un hueco de la pantalla de inicio → Widgets → Agenda.");
         }
     }
 

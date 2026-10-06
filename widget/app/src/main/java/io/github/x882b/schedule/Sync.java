@@ -52,10 +52,10 @@ final class Sync {
     }
 
     private static String reason(int code, String repo) {
-        if (code == 401) return "token refused, reconnect";
-        if (code == 403) return "token can't read " + repo;
-        if (code == 404) return "nothing in " + repo + " yet";
-        return "GitHub error " + code;
+        if (code == 401) return "token rechazado, vuelve a conectar";
+        if (code == 403) return "el token no puede leer " + repo;
+        if (code == 404) return "aún no hay nada en " + repo;
+        return "error de GitHub " + code;
     }
 
     private static String read(InputStream in) throws IOException {

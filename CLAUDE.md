@@ -6,7 +6,7 @@ as the user's training log, Plates (`X882b/plates`): simple, readable, tuned
 to their needs, and it has to still work unchanged in three years.
 
 Planned home: `https://x882b.github.io/Personal_Calendar/` from `main`, root
-folder. Current cache version: **schedule-v5**.
+folder. Current cache version: **schedule-v6**.
 
 Prefer small, direct changes to the existing file over refactors, frameworks
 or a build pipeline.
@@ -29,7 +29,7 @@ or a build pipeline.
 ## THE DEPLOY GOTCHA
 
 **Every change to `index.html` must bump `VERSION` at the top of `sw.js`**
-(`schedule-v5` → `schedule-v6`), and both files must be pushed. The service
+(`schedule-v6` → `schedule-v7`), and both files must be pushed. The service
 worker serves the cached copy first; without the bump phones keep the old app.
 
 Upload files by drag-and-drop, never by pasting into GitHub's web editor (a
@@ -70,8 +70,9 @@ saves, renders, schedules a sync.
 ```js
 S = {
   people: [{id:"a", name, color, u}, {id:"b", name, color, u}],
-  cats:   [{id, name, free, u}],          // free = word for empty days in exports ("libre")
-  events: [{ id, title, who:"a"|"b"|"ab", cat:""|catId, date:"YYYY-MM-DD", last:"",   // last = final day of a trip
+  cats:   [{id, name, free, u,             // free = word for empty days in exports ("libre")
+            subs:[{id, name, from, to}]}],  // subcategories: presets with their own hours
+  events: [{ id, title, who:"a"|"b"|"ab", cat:""|catId, sub:""|subId, date:"YYYY-MM-DD", last:"",   // last = final day of a trip
              from:"HH:MM"|"", to:"", repeat:""|"w"|"2w"|"m"|"y", until:"",
              skip:["YYYY-MM-DD"], note, by:"a"|"b", u }]
 }
@@ -89,6 +90,15 @@ S = {
 - A shift is an event whose title was left empty in the form: it takes the
   category's name. Exports show such events as just their time, and renaming
   the category renames those titles too (same `u` bump, one sync).
+- Subcategories live inside their category record, so they merge with it
+  (an edit to any of them bumps the category's `u`). In the event form,
+  `subPills()` offers the chosen category's subcategories, or every one under
+  "Rápido" when no category is chosen; one tap runs `saveEvent(id, {cat,
+  sub})`, which takes the subcategory's hours, saves and closes (fewest taps
+  for a shift, as asked). A title that is only a time ("15:30", how the user
+  first typed shifts) gives way to the category's name. An event keeps `sub`
+  only while its category and hours still match it. `Horario laboral` starts
+  with Mañana 07:30–15:30 and Tarde 15:30–23:30 (fixed ids `m`, `t`).
 - Top-level keys: before v3, `normalize()` dropped any it didn't know. `cats`
   is safe only because no older copy was ever in use. Think before adding
   another top-level key.
@@ -137,6 +147,18 @@ under the field, not only a red border.
 "Set up other phone" builds `index.html#join=<base64 {repo, token}>`. Boot
 reads it, stores it in `L`, and strips it from the address bar.
 
+### Language
+
+The whole UI is Spanish (the user asked; they still write to us in English).
+Dates are Spanish too: `DAYS`/`SHORT`/`MONTHS` are lowercase Spanish words
+and `cap()` capitalises them where they start a heading ("Martes 6 de
+octubre", "Mar 13 oct"). The three starting categories were English before
+v6; `spanishSeeds()` renames them (and the shifts named after them) at boot
+and after every sync, only while they still carry the old English name.
+Export language defaults to Spanish (`L.es` marks phones already switched).
+The widget is Spanish as well. GitHub's own menu names in the setup steps
+stay in English, since that is what GitHub's screens say.
+
 ### UI rules carried over from Plates
 
 - Sheets use `dvh`, not `vh` (Android URL bar).
@@ -178,7 +200,9 @@ conflicting write, delete propagation, a colour change, categories (empty
 title → category name, inline "+ New", filter, rename cascade, delete,
 syncing to the other phone) and the image export (real JPEG downloads for
 week, month and year, file names, free-day word), and connecting with just
-the repository's name. 64 checks.
+the repository's name, subcategories (one-tap shift, narrowing by category,
+time-only title replaced, adding one in Settings) and the rename of the old
+English starting categories. 75 checks.
 
 Minimum before shipping: that test, `node --check` on the extracted script,
 balanced CSS braces, and the `data-act` audit above.
@@ -206,7 +230,8 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
   min (Android's minimum) plus a ↻ button. Fetches in `goAsync()` on a
   thread, at most every 5 min unless ↻ is pressed. Taps open the web app
   URL (Chrome hands it to the installed PWA); + opens `…#new`.
-- `RowsService.java`: the list rows. The colour bar is two stacked
+- `RowsService.java`: the list rows (they name the event's subcategory, as
+  the app's rows do). The colour bar is two stacked
   ImageViews tinted with `setColorFilter` (plain `View` isn't allowed in
   RemoteViews), so "both" shows both colours.
 - Filter, per widget: the label under the date ("Everything ▾", or e.g.

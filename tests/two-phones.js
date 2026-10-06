@@ -86,7 +86,7 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   await addEvent(pa, {title:'Parent meeting <school>', who:'b', date:day(3), from:'17:00'});
   await addEvent(pa, {title:'Gym', who:'a', date:day(1), from:'07:00', to:'08:00'});
   const upText = await pa.textContent('#view');
-  assert(upText.includes('Today') && upText.includes('Tomorrow'), 'upcoming shows Today and Tomorrow');
+  assert(upText.includes('Hoy') && upText.includes('Mañana'), 'upcoming shows Hoy and Mañana');
   assert(upText.includes('Parent meeting <school>'), 'titles are escaped, not injected');
   assert((await pa.$$('.ev')).length >= 7, 'events listed: ' + (await pa.$$('.ev')).length);
   assert(await pa.$eval('.dayb.today .ev', e=>e.classList.contains('past')), 'finished event today is greyed');
@@ -97,7 +97,7 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert(tripDays === 4, 'multi-day trip covers 4 days: ' + tripDays);
   assert(!upText.includes('day 2 of 4') && !upText.includes('cont.'), 'multi-day events show no "day k of n" or "cont."');
   const day2 = await pa.evaluate(()=>evRow({ev:{id:'x', title:'Shift', who:'a', date:'2026-01-01', last:'2026-01-03', from:'15:30', to:'23:30', repeat:'', note:''}, s:'2026-01-01'}, '2026-01-02'));
-  assert(day2.includes('15:30') && day2.includes('23:30') && !day2.includes('all day'), 'a timed multi-day event shows its hours on day 2');
+  assert(day2.includes('15:30') && day2.includes('23:30') && !day2.includes('todo el día'), 'a timed multi-day event shows its hours on day 2');
   const cell = await pa.evaluate(()=>{
     const kept = S.events;
     S.events = [{id:'x', title:'Shift', who:'ab', cat:'', date:'2026-01-01', last:'2026-01-03', from:'15:30', to:'23:30', repeat:'', note:''}];
@@ -140,30 +140,30 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert(!(await pa.isVisible('#f-title')), 'back button closes the sheet');
 
   // --- connect sync on A ---
-  assert((await pa.textContent('#sync')).includes('Not shared'), 'header says not shared before setup');
+  assert((await pa.textContent('#sync')).includes('Sin compartir'), 'header says not shared before setup');
   await pa.click('#gear');
   await pa.fill('#f-repo', 'https://github.com/test/data');
   await pa.fill('#f-token', 'wrong');
   await pa.click('[data-act="saveSync"]');
-  await pa.waitForFunction(()=>document.querySelector('#sync').textContent.includes('problem'));
-  assert((await pa.textContent('#s-status')).includes('refused the token'), 'bad token explained');
+  await pa.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Error'));
+  assert((await pa.textContent('#s-status')).includes('rechazó el token'), 'bad token explained');
   await pa.screenshot({path:SHOTS+'/06-settings-error.png'});
   await pa.click('[data-act="unlink"]');
   // just the repository's name: the owner comes from the token
   await pa.fill('#f-repo', 'data');
   await pa.fill('#f-token', 'nope');
   await pa.click('[data-act="saveSync"]');
-  await pa.waitForFunction(()=>document.querySelector('#f-repo-hint').textContent.includes('refused this token'));
+  await pa.waitForFunction(()=>document.querySelector('#f-repo-hint').textContent.includes('rechazó este token'));
   assert(await pa.evaluate(()=>!L.repo), 'bare name + bad token: explained, not connected');
   await pa.fill('#f-repo', 'my-repo!');
   await pa.fill('#f-token', 'tok123');
   await pa.click('[data-act="saveSync"]');
-  await pa.waitForFunction(()=>document.querySelector('#f-repo-hint').textContent.includes("isn't a repository name"));
+  await pa.waitForFunction(()=>document.querySelector('#f-repo-hint').textContent.includes("no es un nombre de repositorio"));
   assert(await pa.evaluate(()=>!L.repo), 'impossible name is explained, not connected');
   await pa.fill('#f-repo', 'data');
   await pa.fill('#f-token', 'tok123');
   await pa.click('[data-act="saveSync"]');
-  await pa.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Synced'));
+  await pa.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Sincronizado'));
   assert(await pa.evaluate(()=>L.repo) === 'test/data', 'bare name connects as owner/name');
   assert(remoteEvents().length === 7, 'A pushed 7 events to repo');
   assert(repo.file.split('\n').length > 8, 'file is one event per line');
@@ -190,7 +190,7 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   await pb.click('[data-act="welcomeDone"]');
   assert((await pb.textContent('#view')).includes('Dinner with friends'), 'B sees A\'s events');
   await addEvent(pb, {title:'Football', who:'b', date:day(1), from:'20:00'});
-  await pb.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Synced') && !JSON.parse(localStorage.schedule_local).dirty);
+  await pb.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Sincronizado') && !JSON.parse(localStorage.schedule_local).dirty);
   assert(remoteEvents().some(e=>e.title==='Football' && e.by==='b'), 'B pushed Football');
   await pa.evaluate(()=>sync());
   await pa.waitForFunction(()=>document.querySelector('#view').textContent.includes('Football'));
@@ -199,20 +199,20 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   // --- both edit while offline, then come back ---
   repo.down.add('A'); repo.down.add('B');
   await addEvent(pa, {title:'Haircut', who:'a', date:day(4), from:'10:00'});
-  await pa.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Waiting'));
+  await pa.waitForFunction(()=>document.querySelector('#sync').textContent.includes('Pendiente'));
   assert(true, 'A shows Waiting while offline');
   await pb.locator('.ev', {hasText:'Gym'}).first().click();
   await pb.fill('#f-title', 'Gym (legs)');
   await pb.click('[data-act="saveEv"]');
   await pb.locator('.ev', {hasText:'Dentist'}).first().click();
   await pb.click('[data-act="delEv"]');
-  assert((await pb.textContent('[data-act="delEv"]')).includes('Tap again'), 'delete asks for a second tap');
+  assert((await pb.textContent('[data-act="delEv"]')).includes('Toca otra vez'), 'delete asks for a second tap');
   await pb.click('[data-act="delEv"]');
   await pa.waitForTimeout(1500);
   repo.down.clear();
   await pa.evaluate(()=>sync()); await pa.waitForFunction(()=>!JSON.parse(localStorage.schedule_local).dirty);
   repo.raceOnce = true;   // B's write collides once
-  await pb.evaluate(()=>sync()); await pb.waitForFunction(()=>!JSON.parse(localStorage.schedule_local).dirty && document.querySelector('#sync').textContent.includes('Synced'));
+  await pb.evaluate(()=>sync()); await pb.waitForFunction(()=>!JSON.parse(localStorage.schedule_local).dirty && document.querySelector('#sync').textContent.includes('Sincronizado'));
   await pa.evaluate(()=>sync()); await pa.waitForTimeout(500);
   for(const [t,p] of [['A',pa],['B',pb]]){
     const v = await p.textContent('#view');
@@ -225,7 +225,7 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   // the widget's + button opens index.html#new while the app is already open
   await pa.evaluate(()=>{ location.hash = 'new'; });
   await pa.waitForSelector('#f-title');
-  assert((await pa.textContent('#sheetbox h2')) === 'New event' && !(await pa.url()).includes('#new'), '#new opens the new-event sheet and is cleared');
+  assert((await pa.textContent('#sheetbox h2')) === 'Nuevo evento' && !(await pa.url()).includes('#new'), '#new opens the new-event sheet and is cleared');
   await pa.goBack();
 
   // names/colours sync
@@ -245,7 +245,7 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   await pa.fill('#f-date', day(2)); await pa.fill('#f-from', '07:30');
   await pa.click('[data-act="saveEv"]');
   let shift = (await docA()).events.find(e=>e.cat === 'work' && !e.del);
-  assert(shift && shift.title === 'Work schedule' && shift.from === '07:30', 'empty title takes the category name');
+  assert(shift && shift.title === 'Horario laboral' && shift.from === '07:30', 'empty title takes the category name');
   // "+ New" makes a category without leaving the form
   await pa.click('#add');
   await pa.fill('#f-title', 'Swim lesson');
@@ -257,11 +257,45 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   await pa.click('[data-act="saveEv"]');
   const kids = (await docA()).cats.find(c=>c.name === 'Kids');
   assert(kids && (await docA()).events.some(e=>e.title === 'Swim lesson' && e.cat === kids.id), 'event saved with the new category');
+  // subcategories: Horario laboral starts with Mañana and Tarde; one tap on a new event saves it with its hours
+  assert(JSON.stringify((await docA()).cats.find(c=>c.id === 'work').subs.map(x=>[x.name, x.from, x.to])) === JSON.stringify([['Mañana','07:30','15:30'],['Tarde','15:30','23:30']]), 'Horario laboral starts with Mañana and Tarde');
+  await pa.click(`[data-act="new"][data-d="${day(6)}"]`);
+  await pa.click('[data-seg="who"] [data-v="b"]');
+  assert((await pa.textContent('#subs')).includes('Horario laboral · Tarde'), 'with no category picked, every subcategory is offered');
+  await pa.screenshot({path:SHOTS+'/24-form-quick.png'});
+  await pa.click('[data-act="subPick"][data-id="work"][data-v="t"]');
+  assert(!(await pa.isVisible('#f-title')), 'one tap on a subcategory saves and closes');
+  let tarde = (await docA()).events.find(e=>e.sub === 't' && !e.del);
+  assert(tarde && tarde.date === day(6) && tarde.who === 'b' && tarde.cat === 'work' && tarde.from === '15:30' && tarde.to === '23:30' && tarde.title === 'Horario laboral', 'subcategory shift: right day, person, category and hours');
+  assert((await pa.textContent('#view')).includes('Tarde'), 'the row names the subcategory');
+  // picking a category narrows the buttons to its own subcategories
+  await pa.click('#add');
+  await pa.click('[data-seg="cat"] [data-v="doctors"]');
+  assert((await pa.textContent('#subs')).trim() === '', 'a category without subcategories offers none');
+  await pa.click('[data-seg="cat"] [data-v="work"]');
+  assert((await pa.textContent('#subs')).includes('Mañana') && !(await pa.textContent('#subs')).includes('Horario laboral ·'), 'a chosen category offers just its own');
+  // editing a shift whose title is a time: applying a subcategory replaces the time-title
+  await pa.fill('#f-title', '15:30');
+  await pa.click('[data-act="subPick"][data-id="work"][data-v="m"]');
+  const manana = (await docA()).events.find(e=>e.sub === 'm' && !e.del);
+  assert(manana && manana.title === 'Horario laboral' && manana.from === '07:30', 'a title that is only a time gives way to the subcategory');
+  // Settings: add one
+  await pa.click('#gear');
+  await pa.click('[data-act="subAdd"][data-id="work"]');
+  await pa.locator('.subrow').last().locator('[data-f="name"]').fill('Noche');
+  await pa.locator('.subrow').last().locator('[data-f="from"]').fill('23:30');
+  await pa.locator('.subrow').last().locator('[data-f="to"]').fill('07:30');
+  await pa.locator('.subrow').last().locator('[data-f="name"]').focus();
+  await pa.waitForTimeout(100);
+  const noche = (await docA()).cats.find(c=>c.id === 'work').subs.find(x=>x.name === 'Noche');
+  assert(noche && noche.from === '23:30' && noche.to === '07:30', 'a subcategory added in Settings keeps its hours');
+  await pa.screenshot({path:SHOTS+'/25-settings-subs.png'});
+  await pa.goBack();
   // filter by category
   await pa.click('[data-tab="up"]');
   await pa.click('[data-act="catf"][data-v="work"]');
   let v = await pa.textContent('#view');
-  assert(v.includes('Work schedule') && !v.includes('Dinner with friends') && !v.includes('Swim lesson'), 'category filter shows only that category');
+  assert(v.includes('Horario laboral') && !v.includes('Dinner with friends') && !v.includes('Swim lesson'), 'category filter shows only that category');
   await pa.screenshot({path:SHOTS+'/21-filter-work.png'});
   // + Event while filtered starts in that category
   await pa.click('#add');
@@ -304,7 +338,7 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
     const dims = await pa.evaluate(b64 => new Promise(res=>{ const i = new Image(); i.onload = ()=>res([i.naturalWidth, i.naturalHeight]); i.src = 'data:image/jpeg;base64,' + b64; }), bytes.toString('base64'));
     assert(bytes[0] === 0xFF && bytes[1] === 0xD8 && dims[0] > 1000, `${kind} export is a real JPEG ${dims.join('x')} (${dl.suggestedFilename()})`);
   }
-  assert(/^schedule-posao-.+-\d{4}\.jpg$/.test((await Promise.all([pa.waitForEvent('download'), pa.click('[data-act="xsave"]')]))[0].suggestedFilename()), 'file is named after category, person and period');
+  assert(/^agenda-posao-.+-\d{4}\.jpg$/.test((await Promise.all([pa.waitForEvent('download'), pa.click('[data-act="xsave"]')]))[0].suggestedFilename()), 'file is named after category, person and period');
   await pa.click('[data-act="xstep"][data-v="-1"]');
   assert((await pa.textContent('.xstep b')).trim() === String(new Date().getFullYear() - 1), '‹ steps back a year');
   await pa.goBack();
@@ -314,7 +348,7 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   await pa.evaluate(()=>sync()); await pa.waitForFunction(()=>!JSON.parse(localStorage.schedule_local).dirty);
   await pb.evaluate(()=>sync()); await pb.waitForTimeout(500);
   const chipsB = await pb.$$eval('[data-act="catf"]', b=>b.map(x=>x.textContent));
-  assert(chipsB.includes('Posao') && !chipsB.includes('Kids') && !chipsB.includes('Work schedule'), 'B gets the renamed and deleted categories: ' + chipsB.join(', '));
+  assert(chipsB.includes('Posao') && !chipsB.includes('Kids') && !chipsB.includes('Horario laboral'), 'B gets the renamed and deleted categories: ' + chipsB.join(', '));
   assert(await pb.evaluate(()=>S.cats.find(c=>c.id === 'work').free) === 'libre', 'B gets the free-day word');
   await pb.click('[data-act="catf"][data-v="work"]');
   v = await pb.textContent('#view');
@@ -322,6 +356,19 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert(repo.file.includes('"cats":['), 'repo file carries the categories');
 
   console.log('commits:', repo.commits);
+
+  // a phone still holding the English starting categories gets them renamed, shifts included
+  const E = await browser.newContext(phone);
+  await E.addInitScript(()=>{ if(!localStorage.schedule_doc){
+    localStorage.schedule_doc = JSON.stringify({people:[{id:'a',name:'Ana',color:'#3fb0e8',u:1},{id:'b',name:'Marko',color:'#ef6f8e',u:1}],
+      cats:[{id:'work',name:'Work schedule',free:'libre',u:5},{id:'doctors',name:'Doctors',free:'',u:0},{id:'birthdays',name:'Mis cumples',free:'',u:3}],
+      events:[{id:'s1',title:'Work schedule',who:'b',cat:'work',date:'2026-10-07',last:'',from:'07:30',to:'',repeat:'',until:'',skip:[],note:'',u:1}]});
+    localStorage.schedule_local = JSON.stringify({me:'a', lang:'en'}); } });
+  const pe = await E.newPage(); await pe.goto('http://localhost:8123/'); await pe.waitForTimeout(300);
+  const se = await pe.evaluate(()=>({cats:S.cats.map(c=>[c.id, c.name, (c.subs||[]).length]), title:S.events[0].title, lang:L.lang}));
+  assert(JSON.stringify(se.cats) === JSON.stringify([['work','Horario laboral',2],['doctors','Médicos',0],['birthdays','Mis cumples',0]]), 'English starting categories renamed, own names kept: ' + JSON.stringify(se.cats));
+  assert(se.title === 'Horario laboral' && se.lang === 'es', 'their shifts renamed too, export language now Spanish');
+  await E.close();
 
   // desktop month view
   const D = await browser.newContext({viewport:{width:1280,height:900}});

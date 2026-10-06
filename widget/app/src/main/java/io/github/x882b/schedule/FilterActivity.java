@@ -30,18 +30,18 @@ public class FilterActivity extends Activity {
         final int blue = 0xFF2F6FD0;
 
         RadioGroup people = findViewById(R.id.people);
-        add(people, "all", "Both", who, blue);
+        add(people, "all", "Los dos", who, blue);
         add(people, "a", g.name("a"), who, color(g.a.color, blue));
         add(people, "b", g.name("b"), who, color(g.b.color, blue));
         if (people.getCheckedRadioButtonId() == View.NO_ID) ((RadioButton) people.getChildAt(0)).setChecked(true);
 
         RadioGroup cats = findViewById(R.id.choices);
-        add(cats, "", "Everything", cat, blue);
+        add(cats, "", "Todo", cat, blue);
         for (Agenda.Category c : g.cats) add(cats, c.id, c.name, cat, blue);
 
         ((TextView) findViewById(R.id.hint)).setText(g.cats.isEmpty()
-                ? "Categories show up here once the calendar has loaded."
-                : "Each widget remembers its own choice, so one can show everything and another just one person's work schedule.");
+                ? "Las categorías aparecen aquí cuando el calendario se haya cargado."
+                : "Cada widget recuerda su elección: uno puede mostrar todo y otro solo el horario laboral de una persona.");
 
         people.setOnCheckedChangeListener((rg, checked) -> apply(rg, checked, v -> s.setWidgetWho(id, v)));
         cats.setOnCheckedChangeListener((rg, checked) -> apply(rg, checked, v -> s.setWidgetCat(id, v)));
