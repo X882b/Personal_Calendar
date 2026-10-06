@@ -378,6 +378,19 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   await pd.click('[data-seg="me"] [data-v="a"]'); await pd.click('[data-act="welcomeDone"]');
   await pd.click('[data-tab="month"]');
   await pd.screenshot({path:SHOTS+'/08-desktop-month.png'});
+  const lay = await pd.evaluate(()=>{ const g = document.querySelector('.grid').getBoundingClientRect(),
+    s = document.querySelector('.selday').getBoundingClientRect(), n = document.querySelector('nav').getBoundingClientRect();
+    return {beside: s.left >= g.right && s.top < g.bottom, navTop: n.top < 20}; });
+  assert(lay.beside && lay.navTop, 'computer screen: chosen day beside the month, tabs in the header');
+  const m0 = await pd.textContent('.mhead h2');
+  await pd.keyboard.press('ArrowRight');
+  assert((await pd.textContent('.mhead h2')) !== m0, '→ goes to the next month');
+  await pd.keyboard.press('ArrowLeft');
+  assert((await pd.textContent('.mhead h2')) === m0, '← comes back');
+  await pd.keyboard.press('n');
+  assert(await pd.isVisible('#f-title'), 'N opens a new event');
+  await pd.keyboard.press('Escape');
+  assert(!(await pd.isVisible('#sheetbox h2')), 'Esc closes it');
   await pa.click('[data-tab="up"]');
   await pa.screenshot({path:SHOTS+'/09-upcoming-after-sync.png'});
   await pa.click('[data-tab="month"]');
