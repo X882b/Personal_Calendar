@@ -357,7 +357,7 @@ function visible(){
 function dayEvents(list, day){
   const out = [];
   list.forEach(ev=>{ const s = occStart(ev, day); if(s) out.push({ev, s}); });
-  const key = o => (o.ev.from && o.s === day ? o.ev.from : "") + " " + o.ev.title.toLowerCase();
+  const key = o => (o.ev.from || "") + " " + o.ev.title.toLowerCase();
   return out.sort((x,y)=> key(x) < key(y) ? -1 : key(x) > key(y) ? 1 : 0);
 }
 
@@ -380,11 +380,10 @@ function whoText(w){
   return `<b class="who ${w}">${esc(name(w))}</b>`;
 }
 function evRow(o, day){
-  const ev = o.ev, span = spanOf(ev), first = o.s === day;
-  const timed = ev.from && first;
+  // a multi-day event shows its hours on every day it covers
+  const ev = o.ev, timed = !!ev.from;
   const bits = [whoText(ev.who)], c = catById(ev.cat);
   if(c && c.name !== ev.title) bits.push(esc(c.name));
-  if(span) bits.push("day " + (diffDays(o.s, day)+1) + " of " + (span+1));
   if(ev.repeat) bits.push(REPEAT_TEXT[ev.repeat] || "");
   if(ev.note) bits.push(esc(ev.note.split("\n")[0]));
   const now = today();
@@ -392,7 +391,7 @@ function evRow(o, day){
   return `<button class="ev ${past ? "past" : ""}" data-act="edit" data-id="${ev.id}" data-d="${o.s}">
     ${timed
       ? `<span class="tm">${ev.from}${ev.to ? `<small>${ev.to}</small>` : ""}</span>`
-      : `<span class="tm all">${span && !first ? "cont." : "all day"}</span>`}
+      : `<span class="tm all">all day</span>`}
     <i class="bar ${ev.who}"></i>
     <span><span class="et">${esc(ev.title)}</span><span class="es">${bits.join(" · ")}</span></span>
   </button>`;
@@ -449,7 +448,7 @@ function renderMonth(){
     const d = addDays(first, i - lead), evs = dayEvents(list, d);
     const cls = [d.slice(0,7) !== month ? "out" : "", d === now ? "now" : "", d === selDay ? "sel" : "", d < now ? "gone" : ""].join(" ");
     const dots = evs.slice(0,4).map(o=>`<i class="dot ${o.ev.who}"></i>`).join("") + (evs.length > 4 ? `<small>+</small>` : "");
-    const titles = evs.slice(0,3).map(o=>`<span class="mt ${o.ev.who}">${o.ev.from && o.s === d ? o.ev.from+" " : ""}${esc(o.ev.title)}</span>`).join("")
+    const titles = evs.slice(0,3).map(o=>`<span class="mt ${o.ev.who}">${o.ev.from ? o.ev.from+" " : ""}${esc(o.ev.title)}</span>`).join("")
       + (evs.length > 3 ? `<span class="mt more">+${evs.length-3} more</span>` : "");
     grid += `<button class="cell ${cls}" data-act="pickDay" data-d="${d}" aria-label="${longDay(d)}">
       <span class="dn">${+d.slice(8)}</span><span class="dots">${dots}</span>${titles}
@@ -688,7 +687,7 @@ function xlines(o, free){
     if(!evs.length) return free ? [{text:free, bold:true, free:true}] : [];
     return evs.map(x=>{
       const ev = x.ev, own = catById(ev.cat);
-      const time = ev.from && x.s === day ? ev.from + (ev.to ? "–" + ev.to : "") : "";
+      const time = ev.from ? ev.from + (ev.to ? "–" + ev.to : "") : "";
       const bare = c && own && time && ev.title.trim().toLowerCase() === own.name.trim().toLowerCase();
       return {text:(time + " " + (bare ? "" : ev.title)).trim(), dot:o.who === "all" && ev.who !== "ab" ? person(ev.who).color : ""};
     });

@@ -84,8 +84,7 @@ public class RowsService extends RemoteViewsService {
         private RemoteViews event(Agenda.Row r) {
             Agenda.Event e = r.ev;
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.row_event);
-            int span = Agenda.span(e);
-            boolean first = r.start.equals(r.day), timed = !e.from.isEmpty() && first;
+            boolean timed = !e.from.isEmpty();   // every day of a multi-day event shows its hours
             boolean past = Agenda.past(r, today, now);
 
             // rows are recycled, so every property is set every time
@@ -96,7 +95,7 @@ public class RowsService extends RemoteViewsService {
                 v.setTextViewText(R.id.to, e.to);
                 v.setViewVisibility(R.id.to, e.to.isEmpty() ? View.GONE : View.VISIBLE);
             } else {
-                v.setTextViewText(R.id.from, span > 0 && !first ? "cont." : "all day");
+                v.setTextViewText(R.id.from, "all day");
                 v.setTextViewTextSize(R.id.from, TypedValue.COMPLEX_UNIT_SP, 11);
                 v.setTextColor(R.id.from, DIM);
                 v.setViewVisibility(R.id.to, View.GONE);
@@ -120,8 +119,6 @@ public class RowsService extends RemoteViewsService {
             } else {
                 who(sub, g.name(e.who), e.who.equals("b") ? cb : ca);
             }
-            if (span > 0) sub.append(" · day ").append(String.valueOf(r.day.toEpochDay() - r.start.toEpochDay() + 1))
-                    .append(" of ").append(String.valueOf(span + 1));
             if (!e.repeat.isEmpty()) sub.append(" · ").append(Agenda.repeatText(e.repeat));
             if (!e.note.isEmpty()) sub.append(" · ").append(e.note.split("\n")[0]);
             v.setTextViewText(R.id.sub, sub);

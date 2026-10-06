@@ -95,7 +95,15 @@ async function addEvent(p, {title, who, date, last, from, to, repeat, note}){
   assert(swimDays >= 2, 'weekly repeat appears on multiple days: ' + swimDays);
   const tripDays = await pa.$$eval('.dayb', bs=>bs.filter(b=>b.textContent.includes('Trip to Novi Sad')).length);
   assert(tripDays === 4, 'multi-day trip covers 4 days: ' + tripDays);
-  assert(upText.includes('day 2 of 4'), 'trip shows "day 2 of 4"');
+  assert(!upText.includes('day 2 of 4') && !upText.includes('cont.'), 'multi-day events show no "day k of n" or "cont."');
+  const day2 = await pa.evaluate(()=>evRow({ev:{id:'x', title:'Shift', who:'a', date:'2026-01-01', last:'2026-01-03', from:'15:30', to:'23:30', repeat:'', note:''}, s:'2026-01-01'}, '2026-01-02'));
+  assert(day2.includes('15:30') && day2.includes('23:30') && !day2.includes('all day'), 'a timed multi-day event shows its hours on day 2');
+  const cell = await pa.evaluate(()=>{
+    const kept = S.events;
+    S.events = [{id:'x', title:'Shift', who:'ab', cat:'', date:'2026-01-01', last:'2026-01-03', from:'15:30', to:'23:30', repeat:'', note:''}];
+    try{ return xlines({who:'all', cat:''}, '')('2026-01-02'); } finally { S.events = kept; }
+  });
+  assert(cell.length === 1 && cell[0].text.startsWith('15:30–23:30'), 'export shows the hours on day 2 too: ' + cell[0].text);
   await pa.screenshot({path:SHOTS+'/02-upcoming.png', fullPage:false});
   await pa.screenshot({path:SHOTS+'/02b-upcoming-full.png', fullPage:true});
 
