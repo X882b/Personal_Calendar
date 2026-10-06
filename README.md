@@ -43,6 +43,25 @@ On first open it asks for both names and whose phone it is.
 
 Long-press the home screen icon for a **Nuevo evento** shortcut.
 
+## On a computer
+
+The same address works in any browser on a PC or Mac (Chrome, Edge, Firefox,
+Safari). On a wide screen the tabs sit in the top bar, the month shows the
+event titles in each day, and the chosen day is listed beside the month.
+
+- **Connect it:** on a phone that is already connected, ⚙ → **Configurar el
+  otro móvil**, send the link to yourself (mail, WhatsApp Web) and open it in
+  the computer's browser. It asks whose it is, then syncs like a phone.
+- **Install it (optional):** in Chrome or Edge, the install icon at the right
+  of the address bar (Chrome: or ⋮ → Cast, save and share → Install page as
+  app). It then opens in
+  its own window, like a program.
+- **Keyboard:** **N** new event, **←** **→** previous/next month, **Esc**
+  closes a form, **Enter** in the title saves.
+- Date and time fields follow the browser's language: in an English (US)
+  browser they show month/day and AM/PM. Setting the browser to Spanish (or
+  English UK) gives day/month and 24 h.
+
 ## 3. Turn on sharing between the phones
 
 You do this once, on one phone (or on a computer).

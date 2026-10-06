@@ -6,7 +6,7 @@ as the user's training log, Plates (`X882b/plates`): simple, readable, tuned
 to their needs, and it has to still work unchanged in three years.
 
 Planned home: `https://x882b.github.io/Personal_Calendar/` from `main`, root
-folder. Current cache version: **schedule-v6**.
+folder. Current cache version: **schedule-v7**.
 
 Prefer small, direct changes to the existing file over refactors, frameworks
 or a build pipeline.
@@ -29,7 +29,7 @@ or a build pipeline.
 ## THE DEPLOY GOTCHA
 
 **Every change to `index.html` must bump `VERSION` at the top of `sw.js`**
-(`schedule-v6` → `schedule-v7`), and both files must be pushed. The service
+(`schedule-v7` → `schedule-v8`), and both files must be pushed. The service
 worker serves the cached copy first; without the bump phones keep the old app.
 
 Upload files by drag-and-drop, never by pasting into GitHub's web editor (a
@@ -167,6 +167,17 @@ stay in English, since that is what GitHub's screens say.
 - Opening a sheet pushes a history entry so Android's back button closes it.
 - Deleting needs two taps on the button (no `confirm()` dialogs).
 
+### Computer screens
+
+The same file is the PC version. From 700 px the month cells show titles
+(two lines) instead of dots and sheets become centred dialogs. From 1100 px
+the tab bar moves up into the header, the month and the chosen day sit side
+by side (`.mbody`, day list sticky), and Upcoming stays a 760 px column
+(`main[data-view="up"]`). Keyboard: N new event, ← → month, Esc closes a
+sheet (never the first-run one, which needs an owner). Don't put `data-tab`
+on anything but the tab buttons: the click handler treats any element inside
+one as a tab switch.
+
 ### Image export
 
 `picture(o, free)` draws onto a canvas and returns it; `o = {kind:"w"|"m"|"y",
@@ -202,7 +213,8 @@ syncing to the other phone) and the image export (real JPEG downloads for
 week, month and year, file names, free-day word), and connecting with just
 the repository's name, subcategories (one-tap shift, narrowing by category,
 time-only title replaced, adding one in Settings) and the rename of the old
-English starting categories. 75 checks.
+English starting categories, and a desktop window (side-by-side
+layout, keyboard). 80 checks.
 
 Minimum before shipping: that test, `node --check` on the extracted script,
 balanced CSS braces, and the `data-act` audit above.

@@ -230,6 +230,21 @@ code{font-size:13px;background:var(--steel);border:1px solid var(--edge);border-
     top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);
     width:min(540px,92vw);max-height:86vh;max-height:86dvh;border:1px solid var(--edge);border-radius:14px;padding:22px;
   }
+  .mt:not(.more){white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+}
+/* computer screens: tabs up in the header, the chosen day beside the month */
+@media (min-width:1100px){
+  main{max-width:1240px;padding-bottom:110px}
+  main[data-view="up"]{max-width:760px}
+  nav{
+    top:0;bottom:auto;left:50%;right:auto;transform:translateX(-50%);
+    background:none;border:none;grid-template-columns:auto auto;gap:6px;padding:16px 0 0;
+  }
+  nav button{grid-auto-flow:column;align-items:center;gap:8px;padding:9px 18px;font-size:14px;border-radius:8px}
+  nav button.on{box-shadow:none;background:var(--raised)}
+  #add{right:max(24px,calc(50% - 620px));bottom:28px}
+  .mbody{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:32px;align-items:start}
+  .selday{margin-top:44px;position:sticky;top:92px}
 }
 </style>
 </head>
@@ -405,6 +420,7 @@ function render(){
   document.documentElement.style.setProperty("--pb", person("b").color);
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on", b.dataset.tab === L.tab));
   SUB.textContent = longDay(today());
+  view.dataset.view = L.tab;
   if(L.tab === "month") renderMonth(); else renderUp();
   drawSync();
 }
@@ -485,13 +501,14 @@ function renderMonth(){
     const cls = [d.slice(0,7) !== month ? "out" : "", d === now ? "now" : "", d === selDay ? "sel" : "", d < now ? "gone" : ""].join(" ");
     const dots = evs.slice(0,4).map(o=>`<i class="dot ${o.ev.who}"></i>`).join("") + (evs.length > 4 ? `<small>+</small>` : "");
     const titles = evs.slice(0,3).map(o=>`<span class="mt ${o.ev.who}">${o.ev.from ? o.ev.from+" " : ""}${esc(o.ev.title)}</span>`).join("")
-      + (evs.length > 3 ? `<span class="mt more">+${evs.length-3} more</span>` : "");
+      + (evs.length > 3 ? `<span class="mt more">+${evs.length-3} más</span>` : "");
     grid += `<button class="cell ${cls}" data-act="pickDay" data-d="${d}" aria-label="${longDay(d)}">
       <span class="dn">${+d.slice(8)}</span><span class="dots">${dots}</span>${titles}
     </button>`;
   }
   const evs = dayEvents(list, selDay);
   view.innerHTML = `${chips()}
+    <div class="mbody"><div>
     <div class="mhead">
       <button class="arrow" data-act="month" data-v="-1" aria-label="Mes anterior">‹</button>
       <h2>${cap(MONTHS[+month.slice(5)-1])} ${month.slice(0,4)}</h2>
@@ -499,13 +516,14 @@ function renderMonth(){
       <button class="arrow" data-act="month" data-v="1" aria-label="Mes siguiente">›</button>
     </div>
     <div class="grid">${grid}</div>
+    </div>
     <section class="dayb selday">
       <div class="dayh">
         <h3>${longDay(selDay)}</h3><span class="muted">${selDay === now ? "hoy" : ""}</span>
         <button class="plus" data-act="new" data-d="${selDay}" aria-label="Añadir el ${pretty(selDay)}">+</button>
       </div>
       ${evs.length ? evs.map(o=>evRow(o, selDay)).join("") : `<div class="empty">Libre</div>`}
-    </section>`;
+    </section></div>`;
 }
 
 /* ---------- sheets (forms) ---------- */
@@ -1297,6 +1315,14 @@ document.body.addEventListener("input", e=>{
 document.body.addEventListener("keydown", e=>{
   if(e.key === "Enter" && e.target.id === "f-title"){ e.preventDefault(); saveEvent(box.querySelector('[data-act="saveEv"]').dataset.id); }
   if(e.key === "Enter" && e.target.id === "f-newcat"){ e.preventDefault(); addCatInline(); }
+  // a computer keyboard: Esc closes a sheet (not the first-run one), N adds, ← → change month
+  if(e.ctrlKey || e.metaKey || e.altKey) return;
+  if(e.key === "Escape" && L.me){ closeSheet(); return; }
+  if(sheet.classList.contains("on") || /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if(e.key === "n" || e.key === "N"){ e.preventDefault(); eventSheet(null, L.tab === "month" ? selDay : today()); }
+  else if(L.tab === "month" && (e.key === "ArrowLeft" || e.key === "ArrowRight")){
+    month = addMonths(month, e.key === "ArrowLeft" ? -1 : 1); selDay = ""; render();
+  }
 });
 
 // swipe the month grid sideways to change month
