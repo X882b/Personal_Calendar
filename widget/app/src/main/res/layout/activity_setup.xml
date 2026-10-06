@@ -34,7 +34,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
             android:backgroundTint="@color/blue"
-            android:text="Add the widget to the home screen"
+            android:text="Añadir el widget a la pantalla de inicio"
             android:textColor="#ffffff" />
 
         <Button
@@ -43,14 +43,14 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:backgroundTint="@color/raised"
-            android:text="Update now"
+            android:text="Actualizar ahora"
             android:textColor="@color/chalk" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
-            android:text="Connect"
+            android:text="Conectar"
             android:textColor="@color/chalk"
             android:textSize="17sp"
             android:textStyle="bold" />
@@ -60,7 +60,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:lineSpacingExtra="3dp"
-            android:text="The easy way: in Schedule, open ⚙ and tap “Connect the phone widget”.\n\nOr paste the link from “Set up other phone” here:"
+            android:text="Lo fácil: en Agenda, abre ⚙ y toca «Conectar el widget».\n\nO pega aquí el enlace de «Configurar el otro móvil»:"
             android:textColor="@color/dim"
             android:textSize="14sp" />
 
@@ -82,7 +82,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:backgroundTint="@color/raised"
-            android:text="Connect"
+            android:text="Conectar"
             android:textColor="@color/chalk" />
 
         <TextView
@@ -90,7 +90,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
             android:lineSpacingExtra="3dp"
-            android:text="The widget only reads the calendar. Changes are made in the Schedule app. It updates about every 30 minutes, or straight away with its ↻ button."
+            android:text="El widget solo lee el calendario. Los cambios se hacen en la app Agenda. Se actualiza cada 30 minutos más o menos, o al momento con su botón ↻."
             android:textColor="@color/dim"
             android:textSize="13sp" />
     </LinearLayout>

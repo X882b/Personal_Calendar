@@ -95,7 +95,7 @@ public class RowsService extends RemoteViewsService {
                 v.setTextViewText(R.id.to, e.to);
                 v.setViewVisibility(R.id.to, e.to.isEmpty() ? View.GONE : View.VISIBLE);
             } else {
-                v.setTextViewText(R.id.from, "all day");
+                v.setTextViewText(R.id.from, "todo el día");
                 v.setTextViewTextSize(R.id.from, TypedValue.COMPLEX_UNIT_SP, 11);
                 v.setTextColor(R.id.from, DIM);
                 v.setViewVisibility(R.id.to, View.GONE);
@@ -119,6 +119,9 @@ public class RowsService extends RemoteViewsService {
             } else {
                 who(sub, g.name(e.who), e.who.equals("b") ? cb : ca);
             }
+            Agenda.Category own = g.cat(e.cat);
+            String subName = own == null || e.sub.isEmpty() ? null : own.subs.get(e.sub);
+            if (subName != null && !subName.isEmpty()) sub.append(" · ").append(subName);
             if (!e.repeat.isEmpty()) sub.append(" · ").append(Agenda.repeatText(e.repeat));
             if (!e.note.isEmpty()) sub.append(" · ").append(e.note.split("\n")[0]);
             v.setTextViewText(R.id.sub, sub);

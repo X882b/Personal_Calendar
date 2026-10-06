@@ -27,10 +27,11 @@ final class Agenda {
 
     static final class Category {
         String id, name;
+        final java.util.Map<String, String> subs = new java.util.HashMap<>();   // subcategory id → name
     }
 
     static final class Event {
-        String id, title, who, cat, from, to, repeat, note;
+        String id, title, who, cat, sub, from, to, repeat, note;
         LocalDate date, last, until;
         final Set<LocalDate> skip = new HashSet<>();
     }
@@ -46,10 +47,12 @@ final class Agenda {
         boolean isHeading() { return ev == null; }
     }
 
-    static final String[] DAYS = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-    static final String[] SHORT = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    static final String[] MONTHS = {"January", "February", "March", "April", "May", "June", "July",
-            "August", "September", "October", "November", "December"};
+    static final String[] DAYS = {"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"};
+    static final String[] SHORT = {"dom", "lun", "mar", "mié", "jue", "vie", "sáb"};
+    static final String[] MONTHS = {"enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+            "agosto", "septiembre", "octubre", "noviembre", "diciembre"};
+
+    static String cap(String s) { return s.isEmpty() ? s : s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1); }
 
     final Person a = new Person(), b = new Person();
     final List<Category> cats = new ArrayList<>();
@@ -79,14 +82,19 @@ final class Agenda {
             }
             // a file from before categories existed gets the same three the app starts with
             JSONArray cs = o.optJSONArray("cats");
-            if (cs == null) cs = new JSONArray("[{\"id\":\"work\",\"name\":\"Work schedule\"},"
-                    + "{\"id\":\"doctors\",\"name\":\"Doctors\"},{\"id\":\"birthdays\",\"name\":\"Birthdays\"}]");
+            if (cs == null) cs = new JSONArray("[{\"id\":\"work\",\"name\":\"Horario laboral\"},"
+                    + "{\"id\":\"doctors\",\"name\":\"Médicos\"},{\"id\":\"birthdays\",\"name\":\"Cumpleaños\"}]");
             for (int i = 0; i < cs.length(); i++) {
                 JSONObject c = cs.optJSONObject(i);
                 if (c == null || (c.has("del") && c.optInt("del", 1) != 0) || c.optString("id").isEmpty()) continue;
                 Category k = new Category();
                 k.id = c.optString("id");
                 k.name = c.optString("name");
+                JSONArray ss = c.optJSONArray("subs");
+                if (ss != null) for (int j = 0; j < ss.length(); j++) {
+                    JSONObject x = ss.optJSONObject(j);
+                    if (x != null && !x.optString("id").isEmpty()) k.subs.put(x.optString("id"), x.optString("name"));
+                }
                 g.cats.add(k);
             }
             g.cats.sort((x, y) -> x.name.compareToIgnoreCase(y.name));
@@ -108,6 +116,7 @@ final class Agenda {
                 v.repeat = e.optString("repeat", "");
                 v.note = e.optString("note", "");
                 v.cat = e.optString("cat", "");
+                v.sub = e.optString("sub", "");
                 JSONArray sk = e.optJSONArray("skip");
                 if (sk != null) for (int j = 0; j < sk.length(); j++) {
                     LocalDate d = day(sk.optString(j));
@@ -155,8 +164,8 @@ final class Agenda {
     }
 
     String name(String who) {
-        if (who.equals("b")) return b.name.isEmpty() ? "Person 2" : b.name;
-        return a.name.isEmpty() ? "Person 1" : a.name;
+        if (who.equals("b")) return b.name.isEmpty() ? "Persona 2" : b.name;
+        return a.name.isEmpty() ? "Persona 1" : a.name;
     }
 
     /* ---------- which events fall on a day ---------- */
@@ -221,10 +230,10 @@ final class Agenda {
             Row h = new Row();
             h.day = d;
             h.free = evs.isEmpty();
-            h.label = i == 0 ? "Today" : i == 1 ? "Tomorrow" : i < 7 ? DAYS[weekday(d)] : pretty(d, today);
+            h.label = i == 0 ? "Hoy" : i == 1 ? "Mañana" : i < 7 ? cap(DAYS[weekday(d)]) : cap(pretty(d, today));
             h.side = i < 7 ? d.getDayOfMonth() + " " + mon(d)
-                    : i < 14 ? "in " + i + " days" : "in " + Math.round(i / 7.0) + " weeks";
-            if (h.free) h.side += " · free";
+                    : i < 14 ? "en " + i + " días" : "en " + Math.round(i / 7.0) + " semanas";
+            if (h.free) h.side += " · libre";
             out.add(h);
             out.addAll(evs);
         }
@@ -243,10 +252,10 @@ final class Agenda {
 
     static String repeatText(String r) {
         switch (r) {
-            case "w":  return "every week";
-            case "2w": return "every 2 weeks";
-            case "m":  return "every month";
-            case "y":  return "every year";
+            case "w":  return "cada semana";
+            case "2w": return "cada 2 semanas";
+            case "m":  return "cada mes";
+            case "y":  return "cada año";
             default:   return "";
         }
     }
@@ -263,6 +272,6 @@ final class Agenda {
     }
 
     static String longDay(LocalDate d) {
-        return DAYS[weekday(d)] + " " + d.getDayOfMonth() + " " + MONTHS[d.getMonthValue() - 1];
+        return cap(DAYS[weekday(d)]) + " " + d.getDayOfMonth() + " de " + MONTHS[d.getMonthValue() - 1];
     }
 }

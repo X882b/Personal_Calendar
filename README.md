@@ -1,4 +1,4 @@
-# Schedule
+# Agenda
 
 A shared calendar for two people that runs in the browser. You install it on
 both phones, each of you gets a colour, and anything one of you adds shows up
@@ -41,7 +41,7 @@ https://x882b.github.io/Personal_Calendar/
 
 On first open it asks for both names and whose phone it is.
 
-Long-press the home screen icon for a **New event** shortcut.
+Long-press the home screen icon for a **Nuevo evento** shortcut.
 
 ## 3. Turn on sharing between the phones
 
@@ -56,12 +56,12 @@ You do this once, on one phone (or on a computer).
    - Expiration: pick the longest offered. When it runs out the app says so,
      and you make a new one and connect again.
 3. In the app: ⚙ → Sharing between phones → type `calendar-data` (or the full
-   `X882b/calendar-data`), paste the token → **Connect**. The top bar should
-   say **Synced**.
+   `X882b/calendar-data`), paste the token → **Conectar**. The top bar should
+   say **Sincronizado**.
 
 ## 4. Connect the second phone
 
-On the phone that is already connected: ⚙ → **Set up other phone**. Send the
+On the phone that is already connected: ⚙ → **Configurar el otro móvil**. Send the
 link to the other phone (WhatsApp, Signal, whatever) and open it there in
 Chrome. It connects, pulls the calendar, and asks whose phone it is. Then
 install it as in step 2.
@@ -71,7 +71,7 @@ message afterwards if you like.
 
 ## 5. The home-screen widget (Android)
 
-A small separate app, **Schedule widget**, puts today and the coming days on
+A small separate app, **Widget Agenda**, puts today and the coming days on
 the home screen in your two colours. It reads the same calendar, so it needs
 sharing (step 3) to be on. Do this on each phone.
 
@@ -86,17 +86,17 @@ sharing (step 3) to be on. Do this on each phone.
 
 **Connect it**
 
-3. Open Schedule → ⚙ → **Connect the phone widget**. The widget app opens
+3. Open Agenda → ⚙ → **Conectar el widget**. The widget app opens
    already connected.
-4. Tap **Add the widget to the home screen**. Or long-press the home screen →
-   Widgets → Schedule.
+4. Tap **Añadir el widget a la pantalla de inicio**. Or long-press the home screen →
+   Widgets → Agenda.
 
 **Using it**
 
-- Tap a day or an event to open Schedule; **+** opens a new event.
-- **Choose what it shows:** tap the label under the date (**Everything ▾**)
-  and pick a person, a category, or both, e.g. **Ana · Work schedule**.
-  Events you share ("Both") still show under each person. The label turns
+- Tap a day or an event to open Agenda; **+** opens a new event.
+- **Choose what it shows:** tap the label under the date (**Todo ▾**)
+  and pick a person, a category, or both, e.g. **Ana · Horario laboral**.
+  Events you share ("Los dos") still show under each person. The label turns
   light so you can see the widget is filtered. Each widget remembers its own
   choice, so you can place two: one with everything, one with just her work
   schedule.
@@ -116,9 +116,9 @@ the repo's **Actions** tab.
 
 ## Categories
 
-Every event can have a category. Three come ready: **Work schedule**,
-**Doctors**, **Birthdays**. Add, rename or delete them in ⚙ → Categories, or
-with **+ New** right in the event form. Both phones share the same list.
+Every event can have a category. Three come ready: **Horario laboral**,
+**Médicos**, **Cumpleaños**. Add, rename or delete them in ⚙ → Categorías, or
+with **+ Nueva** right in the event form. Both phones share the same list.
 
 - The second row of chips filters the calendar by category, on top of the
   person filter (e.g. Ana + Work schedule).
@@ -127,19 +127,32 @@ with **+ New** right in the event form. Both phones share the same list.
   the time, like `07:30`. Renaming the category renames those shifts too.
 - Deleting a category keeps its events; they just lose the category.
 
+## Subcategories (presets with hours)
+
+Each category can hold subcategories with their own hours, e.g.
+**Horario laboral** → **Mañana** 07:30–15:30, **Tarde** 15:30–23:30 (these two
+come ready; add more, like a **Máster** category with its own, in ⚙ →
+Categorías → **+ Subcategoría**).
+
+In a new event they appear as buttons ("Rápido", or just the chosen
+category's). **One tap saves the event** with that category and those hours,
+for the day(s) and person already picked in the form. So a shift is: **+** on
+the day → **Tarde**. The row then reads e.g. *Ana · Tarde*, and exports show
+just the hours.
+
 ## Export as an image
 
-**Export** (top right, next to the people chips) makes a JPEG laid out like a
+**Exportar** (top right, next to the people chips) makes a JPEG laid out like a
 printed rota: weekday header, then for every week a row of dates and a row of
 what's on, each week in its own pastel colour.
 
-- **Week**, **Month** or **Year**; ‹ › moves to the previous or next one.
+- **Semana**, **Mes** or **Año**; ‹ › moves to the previous or next one.
 - Pick the category and the person. It starts with whatever you're filtering.
-- **Days with nothing on show:** e.g. `libre`. Saved with the category,
+- **Los días sin nada muestran:** e.g. `libre`. Saved with the category,
   shared by both phones. Week and month only; the year leaves it out.
-- **Language** of the weekday and month names: English, Español, Srpski,
+- **Idioma** of the weekday and month names: English, Español, Srpski,
   Српски.
-- **Share** sends it straight to WhatsApp, Viber, mail. **Save image**
+- **Compartir** sends it straight to WhatsApp, Viber, mail. **Guardar imagen**
   puts it in Downloads.
 
 A month shows whole weeks, so it starts on a Monday; days from the
@@ -159,9 +172,8 @@ called `vaca`) appears on every day it covers.
   message like `Ana: + Dentist`. That history is a full log of who changed
   what, and a way back if something is deleted by mistake.
 
-The dot in the top bar shows the state: green **Synced**, yellow
-**Waiting/Offline** (changes kept on the phone, they go out later), red **Sync
-problem** (tap it for the reason, usually an expired token).
+The dot in the top bar shows the state: green **Sincronizado**, yellow
+**Pendiente/Sin conexión** (changes kept on the phone, they go out later), red **Error de sincronización** (tap it for the reason, usually an expired token).
 
 ## Updating it later
 
@@ -171,7 +183,7 @@ that, phones keep serving the old cached copy.
 
 ## Backup
 
-⚙ → Backup → **Export file** saves everything as JSON. **Import file** adds
+⚙ → Copia de seguridad → **Exportar archivo** saves everything as JSON. **Importar archivo** adds
 whatever is missing and never overwrites newer changes. With sharing on, the
 private repo is already a backup, so this is mostly for before you switch
 phones without sharing.

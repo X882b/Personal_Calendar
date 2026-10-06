@@ -76,7 +76,7 @@
             android:id="@+id/refresh"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:contentDescription="Refresh"
+            android:contentDescription="Actualizar"
             android:padding="10dp"
             android:src="@drawable/ic_refresh" />
 
@@ -84,7 +84,7 @@
             android:id="@+id/add"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:contentDescription="New event"
+            android:contentDescription="Nuevo evento"
             android:padding="8dp"
             android:src="@drawable/ic_add" />
     </LinearLayout>
