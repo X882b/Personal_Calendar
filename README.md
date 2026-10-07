@@ -113,8 +113,8 @@ sharing (step 3) to be on. Do this on each phone.
 
 - It shows the **month**: ‹ › next to the month's name go to the previous or
   next one (tap the name to come back to this month; it also comes back by
-  itself after an hour). Each day lists up to three things, a colour bar for
-  whose it is and the title, or just the start time for a shift.
+  itself after an hour). Each day lists up to three things: a colour bar for
+  whose it is, the start time and the title.
 - Or the **coming days** as tiles, three across, with hours and titles: tap
   **Todo ▾** → Vista → **Próximos días**. Each widget remembers its own view.
 - Tap a day or an event to open Agenda; **+** opens a new event.

@@ -62,12 +62,6 @@ public class RowsService extends RemoteViewsService {
                 ? String.valueOf(d.getDayOfMonth()) : d.getDayOfMonth() + " " + Agenda.mon(d);
     }
 
-    /** What a month cell says for an event: a shift (titled after its category) by its start time, anything else by its title. */
-    static String cellText(Agenda g, Agenda.Event e) {
-        Agenda.Category k = g.cat(e.cat);
-        return !e.from.isEmpty() && k != null && e.title.equals(k.name) ? e.from : e.title;
-    }
-
     static final class Rows implements RemoteViewsFactory {
         private static final int CHALK = 0xFFE8E6E1, DIM = 0xFF8D919B, WHITE = 0xFFFFFFFF, OUT = 0xFF5D616B;
         private static final int[] CELL = {R.id.cell0, R.id.cell1, R.id.cell2, R.id.cell3, R.id.cell4, R.id.cell5, R.id.cell6},
@@ -155,7 +149,7 @@ public class RowsService extends RemoteViewsService {
                 v.setTextColor(NUM[k], isToday ? WHITE : !in ? OUT : d.isBefore(today) ? DIM : CHALK);
                 v.removeAllViews(CELL_EVS[k]);
                 List<Agenda.Row> evs = g.dayEvents(d);
-                int fit = evs.size() > PER_CELL ? PER_CELL - 1 : evs.size();   // at most three lines: two and "+2"
+                int fit = evs.size() > PER_CELL ? PER_CELL - 1 : evs.size();   // at most three events: two and "+2"
                 for (int i = 0; i < fit; i++) v.addView(CELL_EVS[k], cellEvent(evs.get(i)));
                 if (evs.size() > fit) {
                     RemoteViews more = new RemoteViews(c.getPackageName(), R.layout.cell_more);
@@ -171,7 +165,11 @@ public class RowsService extends RemoteViewsService {
             Agenda.Event e = r.ev;
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.cell_event);
             boolean past = Agenda.past(r, today, now);
-            v.setTextViewText(R.id.text, cellText(g, e));
+            // the start time (a cell has no room for the end), then the title; all-day events just the title
+            v.setTextViewText(R.id.time, e.from);
+            v.setViewVisibility(R.id.time, e.from.isEmpty() ? View.GONE : View.VISIBLE);
+            v.setTextColor(R.id.time, past ? DIM : CHALK);
+            v.setTextViewText(R.id.text, e.title);
             v.setTextColor(R.id.text, past ? DIM : CHALK);
             bar(v, e, past);
             return v;
