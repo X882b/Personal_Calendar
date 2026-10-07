@@ -246,10 +246,11 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
   "Vista" in the filter dialog. **Mes** (default, asked for after the tiles):
   the header reads "‹ Octubre 2026 ›", a row of weekday initials (L M X J V S
   D), then one list row per week (`row_week.xml`, 4–6 rows, Monday first),
-  seven cells with the day number (today in a blue pill, neighbouring
-  months faint and unboxed) and up to three lines: a colour bar and either a
-  shift's start time (title = its category's name, as in exports) or the
-  title (`RowsService.cellText`); more than three → two and "+N". The cells
+  seven cells (at least 72 dp tall, so a month fills a widget the size of
+  the user's) with the day number (today in a blue pill, neighbouring
+  months faint and unboxed) and up to three events: a colour bar, the start
+  time in bold (no room for the end) and the title on up to two lines
+  (`cell_event.xml`); more than three → two and "+N". The cells
   use `Agenda.dayEvents()`, so they match the app. ‹ › broadcast
   `ACTION_MONTH` with a step; the offset is `month_<id>` and falls back to
   this month an hour after the last arrow tap (`moved_<id>`); tapping the
