@@ -20,12 +20,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Feeds the widget's list, built from the last copy of calendar.json.
- * The days are the app's Upcoming list (Agenda.upcoming), laid out as tiles,
- * three to a row.
+ * Feeds the widget's list, built from the last copy of calendar.json. Two views, chosen per widget:
+ * the month (one row per week, seven day cells, like the app's Month tab) or the coming
+ * days (the app's Upcoming list, Agenda.upcoming, as tiles three to a row).
  */
 public class RowsService extends RemoteViewsService {
-    static final int DAYS_AHEAD = 30, PER_ROW = 3;
+    static final int DAYS_AHEAD = 30, PER_ROW = 3, PER_CELL = 3;
 
     @Override
     public RemoteViewsFactory onGetViewFactory(Intent intent) {
@@ -62,8 +62,17 @@ public class RowsService extends RemoteViewsService {
                 ? String.valueOf(d.getDayOfMonth()) : d.getDayOfMonth() + " " + Agenda.mon(d);
     }
 
+    /** What a month cell says for an event: a shift (titled after its category) by its start time, anything else by its title. */
+    static String cellText(Agenda g, Agenda.Event e) {
+        Agenda.Category k = g.cat(e.cat);
+        return !e.from.isEmpty() && k != null && e.title.equals(k.name) ? e.from : e.title;
+    }
+
     static final class Rows implements RemoteViewsFactory {
-        private static final int CHALK = 0xFFE8E6E1, DIM = 0xFF8D919B, WHITE = 0xFFFFFFFF;
+        private static final int CHALK = 0xFFE8E6E1, DIM = 0xFF8D919B, WHITE = 0xFFFFFFFF, OUT = 0xFF5D616B;
+        private static final int[] CELL = {R.id.cell0, R.id.cell1, R.id.cell2, R.id.cell3, R.id.cell4, R.id.cell5, R.id.cell6},
+                NUM = {R.id.num0, R.id.num1, R.id.num2, R.id.num3, R.id.num4, R.id.num5, R.id.num6},
+                CELL_EVS = {R.id.evs0, R.id.evs1, R.id.evs2, R.id.evs3, R.id.evs4, R.id.evs5, R.id.evs6};
         private static final int[] TILE = {R.id.tile0, R.id.tile1, R.id.tile2},
                 LABEL = {R.id.label0, R.id.label1, R.id.label2},
                 SIDE = {R.id.side0, R.id.side1, R.id.side2},
@@ -73,6 +82,9 @@ public class RowsService extends RemoteViewsService {
         private final int widgetId;
         private Agenda g = new Agenda();
         private List<Day> days = new ArrayList<>();
+        private boolean month;
+        private LocalDate shown = LocalDate.now(), gridStart = LocalDate.now();   // the month, and the Monday its grid starts on
+        private int weeks;
         private LocalDate today = LocalDate.now();
         private String now = "";
 
@@ -92,18 +104,28 @@ public class RowsService extends RemoteViewsService {
             Store s = new Store(c);
             String json = s.readDoc();
             g = Agenda.parse(json).only(s.widgetCat(widgetId), s.widgetWho(widgetId));
-            days = json.isEmpty() ? new ArrayList<>() : days(g.upcoming(today, DAYS_AHEAD));
+            month = "month".equals(s.widgetView(widgetId));
+            if (month) {
+                days = new ArrayList<>();
+                shown = today.withDayOfMonth(1).plusMonths(s.widgetMonth(widgetId));
+                int lead = (Agenda.weekday(shown) + 6) % 7;   // weeks start on Monday
+                gridStart = shown.minusDays(lead);
+                weeks = json.isEmpty() ? 0 : (lead + shown.lengthOfMonth() + 6) / 7;
+            } else {
+                days = json.isEmpty() ? new ArrayList<>() : days(g.upcoming(today, DAYS_AHEAD));
+            }
         }
 
-        @Override public int getCount() { return (days.size() + PER_ROW - 1) / PER_ROW; }
+        @Override public int getCount() { return month ? weeks : (days.size() + PER_ROW - 1) / PER_ROW; }
         @Override public RemoteViews getLoadingView() { return null; }
-        @Override public int getViewTypeCount() { return 1; }
+        @Override public int getViewTypeCount() { return 2; }
         @Override public long getItemId(int position) { return position; }
         @Override public boolean hasStableIds() { return false; }
 
         @Override
         public RemoteViews getViewAt(int position) {
             if (position >= getCount()) return null;
+            if (month) return week(position);
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.row_days);
             for (int k = 0; k < PER_ROW; k++) {
                 int i = position * PER_ROW + k;
@@ -117,6 +139,41 @@ public class RowsService extends RemoteViewsService {
                 tile(v, k, days.get(i));
             }
             v.setOnClickFillInIntent(R.id.row, new Intent());
+            return v;
+        }
+
+        /** One week of the month view. */
+        private RemoteViews week(int position) {
+            RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.row_week);
+            for (int k = 0; k < 7; k++) {
+                LocalDate d = gridStart.plusDays(position * 7L + k);
+                boolean in = d.getMonthValue() == shown.getMonthValue(), isToday = d.equals(today);
+                // days of the neighbouring months: no box, faint number (as in the app)
+                v.setInt(CELL[k], "setBackgroundResource", in ? R.drawable.cell : 0);
+                v.setTextViewText(NUM[k], String.valueOf(d.getDayOfMonth()));
+                v.setInt(NUM[k], "setBackgroundResource", isToday ? R.drawable.today_dot : 0);
+                v.setTextColor(NUM[k], isToday ? WHITE : !in ? OUT : d.isBefore(today) ? DIM : CHALK);
+                v.removeAllViews(CELL_EVS[k]);
+                List<Agenda.Row> evs = g.dayEvents(d);
+                int fit = evs.size() > PER_CELL ? PER_CELL - 1 : evs.size();   // at most three lines: two and "+2"
+                for (int i = 0; i < fit; i++) v.addView(CELL_EVS[k], cellEvent(evs.get(i)));
+                if (evs.size() > fit) {
+                    RemoteViews more = new RemoteViews(c.getPackageName(), R.layout.cell_more);
+                    more.setTextViewText(R.id.text, "+" + (evs.size() - fit));
+                    v.addView(CELL_EVS[k], more);
+                }
+            }
+            v.setOnClickFillInIntent(R.id.row, new Intent());
+            return v;
+        }
+
+        private RemoteViews cellEvent(Agenda.Row r) {
+            Agenda.Event e = r.ev;
+            RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.cell_event);
+            boolean past = Agenda.past(r, today, now);
+            v.setTextViewText(R.id.text, cellText(g, e));
+            v.setTextColor(R.id.text, past ? DIM : CHALK);
+            bar(v, e, past);
             return v;
         }
 
@@ -155,12 +212,16 @@ public class RowsService extends RemoteViewsService {
             v.setTextColor(R.id.title, past ? DIM : CHALK);
 
             // no names in a tile: the bar says who (one colour, or both for "both")
+            bar(v, e, past);
+            return v;
+        }
+
+        private void bar(RemoteViews v, Agenda.Event e, boolean past) {
             int ca = color(g.a.color), cb = color(g.b.color);
             v.setInt(R.id.barTop, "setColorFilter", e.who.equals("b") ? cb : ca);
             v.setInt(R.id.barBottom, "setColorFilter", e.who.equals("a") ? ca : cb);
             v.setInt(R.id.barTop, "setImageAlpha", past ? 110 : 255);
             v.setInt(R.id.barBottom, "setImageAlpha", past ? 110 : 255);
-            return v;
         }
 
         private static int color(String hex) {
