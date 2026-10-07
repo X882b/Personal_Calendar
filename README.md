@@ -111,6 +111,9 @@ sharing (step 3) to be on. Do this on each phone.
 
 **Using it**
 
+- The days are tiles, three across: hours and title for each event, the
+  colour bar showing whose it is (both colours for shared ones). Today has a
+  blue outline; a free day in the coming week is a dashed **libre** tile.
 - Tap a day or an event to open Agenda; **+** opens a new event.
 - **Choose what it shows:** tap the label under the date (**Todo ▾**)
   and pick a person, a category, or both, e.g. **Ana · Horario laboral**.
