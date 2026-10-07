@@ -242,12 +242,22 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
   min (Android's minimum) plus a ↻ button. Fetches in `goAsync()` on a
   thread, at most every 5 min unless ↻ is pressed. Taps open the web app
   URL (Chrome hands it to the installed PWA); + opens `…#new`.
-- `RowsService.java`: the list rows (they name the event's subcategory, as
-  the app's rows do). The colour bar is two stacked
+- `RowsService.java`: the list. The days are exactly `Agenda.upcoming()`
+  (the app's Upcoming list), shown as tiles, three per list row
+  (`row_days.xml`; the user asked for blocks that fill the width, from a
+  screenshot where the list used half of it). A tile: "Hoy"/"Mañana"/short
+  weekday + day of month (+ month once it changes), then per event the hours
+  (start bold, end dim, on every day of a multi-day event) and the title, two
+  lines at most, each added with `addView` from `tile_event.xml`. No names
+  or sub-line in a tile: the colour bar says who. Today's tile is outlined
+  blue, an empty day (first week only) is a dashed "libre" tile. A row of
+  three LinearLayouts with `match_parent` height in a `wrap_content` row
+  makes the tiles in a row equally tall; GridView was avoided because it
+  handles items of different heights badly. The colour bar is two stacked
   ImageViews tinted with `setColorFilter` (plain `View` isn't allowed in
-  RemoteViews), so "both" shows both colours.
-- Filter, per widget: the label under the date ("Everything ▾", or e.g.
-  "Ana · Work schedule" filled light) opens `FilterActivity`, a small dialog
+  RemoteViews), so "both" shows both colours. Minimum width 250 dp.
+- Filter, per widget: the label under the date ("Todo ▾", or e.g.
+  "Ana · Horario laboral" filled light) opens `FilterActivity`, a small dialog
   with a Who group and a Category group; each tap applies at once, Done
   closes. Stored as `who_<appWidgetId>` and `cat_<appWidgetId>` in the app's
   prefs (`Store.widgetWho/widgetCat`), read by `RowsService` through the
