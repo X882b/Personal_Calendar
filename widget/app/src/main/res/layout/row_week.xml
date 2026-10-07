@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- one week of the month view: seven day cells, all as tall as the tallest -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingBottom="3dp">
+
+    <LinearLayout
+        android:id="@+id/cell0"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/cell"
+        android:orientation="vertical"
+        android:paddingStart="3dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/num0"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-condensed"
+            android:gravity="center"
+            android:minWidth="20dp"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
+            android:textColor="@color/chalk"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/evs0"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cell1"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/cell"
+        android:orientation="vertical"
+        android:paddingStart="3dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/num1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-condensed"
+            android:gravity="center"
+            android:minWidth="20dp"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
+            android:textColor="@color/chalk"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/evs1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cell2"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/cell"
+        android:orientation="vertical"
+        android:paddingStart="3dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/num2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-condensed"
+            android:gravity="center"
+            android:minWidth="20dp"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
+            android:textColor="@color/chalk"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/evs2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cell3"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/cell"
+        android:orientation="vertical"
+        android:paddingStart="3dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/num3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-condensed"
+            android:gravity="center"
+            android:minWidth="20dp"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
+            android:textColor="@color/chalk"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/evs3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cell4"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/cell"
+        android:orientation="vertical"
+        android:paddingStart="3dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/num4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-condensed"
+            android:gravity="center"
+            android:minWidth="20dp"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
+            android:textColor="@color/chalk"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/evs4"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cell5"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/cell"
+        android:orientation="vertical"
+        android:paddingStart="3dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/num5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-condensed"
+            android:gravity="center"
+            android:minWidth="20dp"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
+            android:textColor="@color/chalk"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/evs5"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/cell6"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/cell"
+        android:orientation="vertical"
+        android:paddingStart="3dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="2dp"
+        android:paddingBottom="4dp">
+
+        <TextView
+            android:id="@+id/num6"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-condensed"
+            android:gravity="center"
+            android:minWidth="20dp"
+            android:paddingStart="3dp"
+            android:paddingEnd="3dp"
+            android:textColor="@color/chalk"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/evs6"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+</LinearLayout>

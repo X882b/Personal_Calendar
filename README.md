@@ -111,9 +111,12 @@ sharing (step 3) to be on. Do this on each phone.
 
 **Using it**
 
-- The days are tiles, three across: hours and title for each event, the
-  colour bar showing whose it is (both colours for shared ones). Today has a
-  blue outline; a free day in the coming week is a dashed **libre** tile.
+- It shows the **month**: ‹ › next to the month's name go to the previous or
+  next one (tap the name to come back to this month; it also comes back by
+  itself after an hour). Each day lists up to three things, a colour bar for
+  whose it is and the title, or just the start time for a shift.
+- Or the **coming days** as tiles, three across, with hours and titles: tap
+  **Todo ▾** → Vista → **Próximos días**. Each widget remembers its own view.
 - Tap a day or an event to open Agenda; **+** opens a new event.
 - **Choose what it shows:** tap the label under the date (**Todo ▾**)
   and pick a person, a category, or both, e.g. **Ana · Horario laboral**.

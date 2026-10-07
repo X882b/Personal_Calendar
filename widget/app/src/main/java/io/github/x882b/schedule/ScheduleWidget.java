@@ -18,11 +18,12 @@ import java.util.Locale;
 /**
  * The home-screen widget. Android calls onUpdate about every 30 minutes
  * (updatePeriodMillis); the ↻ button asks for an update straight away.
- * The label under the date picks what this widget shows (a person, a category);
- * tapping anything else opens the web app.
+ * The label under the date picks what this widget shows (month or coming days,
+ * a person, a category); ‹ › move the month view; tapping anything else opens the web app.
  */
 public class ScheduleWidget extends AppWidgetProvider {
     static final String ACTION_REFRESH = "io.github.x882b.schedule.REFRESH";
+    static final String ACTION_MONTH = "io.github.x882b.schedule.MONTH", EXTRA_STEP = "step";
     private static final long MIN_GAP = 5 * 60_000L;   // launchers call onUpdate often; don't hit GitHub every time
 
     @Override
@@ -42,6 +43,15 @@ public class ScheduleWidget extends AppWidgetProvider {
         if (ACTION_REFRESH.equals(i.getAction())) {
             redrawAll(c, true);
             pullThenRedraw(c);
+            return;
+        }
+        if (ACTION_MONTH.equals(i.getAction())) {   // ‹ or › in the month view; 0 = back to this month
+            int id = i.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+            if (id == AppWidgetManager.INVALID_APPWIDGET_ID) return;
+            new Store(c).moveWidgetMonth(id, i.getIntExtra(EXTRA_STEP, 0));
+            AppWidgetManager m = AppWidgetManager.getInstance(c);
+            draw(c, m, new int[]{id}, false);
+            m.notifyAppWidgetViewDataChanged(new int[]{id}, R.id.list);
             return;
         }
         super.onReceive(c, i);
@@ -75,7 +85,17 @@ public class ScheduleWidget extends AppWidgetProvider {
         Agenda g = Agenda.parse(s.readDoc());
         for (int id : ids) {
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
-            v.setTextViewText(R.id.date, Agenda.longDay(LocalDate.now()));
+            boolean month = "month".equals(s.widgetView(id));
+            int away = s.widgetMonth(id);
+            LocalDate shown = LocalDate.now().withDayOfMonth(1).plusMonths(away);
+            v.setTextViewText(R.id.date, month
+                    ? Agenda.cap(Agenda.MONTHS[shown.getMonthValue() - 1]) + " " + shown.getYear()
+                    : Agenda.longDay(LocalDate.now()));
+            v.setViewVisibility(R.id.prev, month ? View.VISIBLE : View.GONE);
+            v.setViewVisibility(R.id.next, month ? View.VISIBLE : View.GONE);
+            v.setViewVisibility(R.id.wdays, month ? View.VISIBLE : View.GONE);
+            v.setOnClickPendingIntent(R.id.prev, step(c, id, -1));
+            v.setOnClickPendingIntent(R.id.next, step(c, id, 1));
             v.setTextViewText(R.id.status, busy ? "actualizando…" : status(s));
 
             // the filter label: outlined for everything, filled when narrowed ("Ana · Horario laboral")
@@ -102,7 +122,8 @@ public class ScheduleWidget extends AppWidgetProvider {
             PendingIntent setup = PendingIntent.getActivity(c, 0, new Intent(c, SetupActivity.class),
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             PendingIntent open = ready ? openUrl(c, s.appUrl(), 1, PendingIntent.FLAG_IMMUTABLE) : setup;
-            v.setOnClickPendingIntent(R.id.date, open);
+            // the month's name takes a widget that was moved back to this month; otherwise it opens the app
+            v.setOnClickPendingIntent(R.id.date, month && away != 0 ? step(c, id, 0) : open);
             v.setOnClickPendingIntent(R.id.status, open);
             v.setOnClickPendingIntent(R.id.empty, open);
             v.setOnClickPendingIntent(R.id.add, ready ? openUrl(c, s.appUrl() + "#new", 2, PendingIntent.FLAG_IMMUTABLE) : setup);
@@ -115,6 +136,13 @@ public class ScheduleWidget extends AppWidgetProvider {
             v.setPendingIntentTemplate(R.id.list, open);
             m.updateAppWidget(id, v);
         }
+    }
+
+    private static PendingIntent step(Context c, int id, int step) {
+        Intent i = new Intent(c, ScheduleWidget.class).setAction(ACTION_MONTH)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id).putExtra(EXTRA_STEP, step)
+                .setData(Uri.parse("widget://month/" + id + "/" + step));   // one PendingIntent per widget and arrow
+        return PendingIntent.getBroadcast(c, 10 + step, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private static PendingIntent openUrl(Context c, String url, int code, int flags) {

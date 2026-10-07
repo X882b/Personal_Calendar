@@ -242,6 +242,19 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
   min (Android's minimum) plus a ↻ button. Fetches in `goAsync()` on a
   thread, at most every 5 min unless ↻ is pressed. Taps open the web app
   URL (Chrome hands it to the installed PWA); + opens `…#new`.
+- Two views per widget (`Store.widgetView`, `view_<id>`), chosen under
+  "Vista" in the filter dialog. **Mes** (default, asked for after the tiles):
+  the header reads "‹ Octubre 2026 ›", a row of weekday initials (L M X J V S
+  D), then one list row per week (`row_week.xml`, 4–6 rows, Monday first),
+  seven cells with the day number (today in a blue pill, neighbouring
+  months faint and unboxed) and up to three lines: a colour bar and either a
+  shift's start time (title = its category's name, as in exports) or the
+  title (`RowsService.cellText`); more than three → two and "+N". The cells
+  use `Agenda.dayEvents()`, so they match the app. ‹ › broadcast
+  `ACTION_MONTH` with a step; the offset is `month_<id>` and falls back to
+  this month an hour after the last arrow tap (`moved_<id>`); tapping the
+  month's name while away goes back to this month. **Próximos días**: the
+  tiles below.
 - `RowsService.java`: the list. The days are exactly `Agenda.upcoming()`
   (the app's Upcoming list), shown as tiles, three per list row
   (`row_days.xml`; the user asked for blocks that fill the width, from a

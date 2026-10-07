@@ -12,7 +12,8 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 
 /**
- * Opened from a widget's label: pick who and which category that one widget shows.
+ * Opened from a widget's label: pick the view (month or coming days), who and which
+ * category that one widget shows.
  * Every tap applies straight away; Done (or tapping outside) closes.
  */
 public class FilterActivity extends Activity {
@@ -29,6 +30,10 @@ public class FilterActivity extends Activity {
         String who = s.widgetWho(id), cat = g.cat(s.widgetCat(id)) == null ? "" : s.widgetCat(id);
         final int blue = 0xFF2F6FD0;
 
+        RadioGroup views = findViewById(R.id.views);
+        add(views, "month", "Mes", s.widgetView(id), blue);
+        add(views, "days", "Próximos días", s.widgetView(id), blue);
+
         RadioGroup people = findViewById(R.id.people);
         add(people, "all", "Los dos", who, blue);
         add(people, "a", g.name("a"), who, color(g.a.color, blue));
@@ -43,6 +48,7 @@ public class FilterActivity extends Activity {
                 ? "Las categorías aparecen aquí cuando el calendario se haya cargado."
                 : "Cada widget recuerda su elección: uno puede mostrar todo y otro solo el horario laboral de una persona.");
 
+        views.setOnCheckedChangeListener((rg, checked) -> apply(rg, checked, v -> s.setWidgetView(id, v)));
         people.setOnCheckedChangeListener((rg, checked) -> apply(rg, checked, v -> s.setWidgetWho(id, v)));
         cats.setOnCheckedChangeListener((rg, checked) -> apply(rg, checked, v -> s.setWidgetCat(id, v)));
         findViewById(R.id.done).setOnClickListener(v -> finish());

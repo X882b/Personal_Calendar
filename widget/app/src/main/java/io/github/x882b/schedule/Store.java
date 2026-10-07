@@ -48,7 +48,30 @@ final class Store {
     void setWidgetCat(int widgetId, String cat) { p.edit().putString("cat_" + widgetId, cat).apply(); }
     String widgetWho(int widgetId) { return p.getString("who_" + widgetId, "all"); }
     void setWidgetWho(int widgetId, String who) { p.edit().putString("who_" + widgetId, who).apply(); }
-    void forgetWidget(int widgetId) { p.edit().remove("cat_" + widgetId).remove("who_" + widgetId).apply(); }
+    void forgetWidget(int widgetId) {
+        p.edit().remove("cat_" + widgetId).remove("who_" + widgetId).remove("view_" + widgetId)
+                .remove("month_" + widgetId).remove("moved_" + widgetId).apply();
+    }
+
+    /** "month" (the default) or "days" (the tiles of the coming days). */
+    String widgetView(int widgetId) { return p.getString("view_" + widgetId, "month"); }
+    void setWidgetView(int widgetId, String view) {
+        p.edit().putString("view_" + widgetId, view).putInt("month_" + widgetId, 0).apply();
+    }
+
+    /**
+     * Which month the month view shows, counted from this one (‹ is -1, › is +1).
+     * An hour after the last tap on an arrow it is back on this month, so a widget
+     * left on December doesn't stay there.
+     */
+    int widgetMonth(int widgetId) {
+        int m = p.getInt("month_" + widgetId, 0);
+        return m != 0 && System.currentTimeMillis() - p.getLong("moved_" + widgetId, 0) > 3_600_000L ? 0 : m;
+    }
+    void moveWidgetMonth(int widgetId, int step) {
+        int m = step == 0 ? 0 : widgetMonth(widgetId) + step;
+        p.edit().putInt("month_" + widgetId, m).putLong("moved_" + widgetId, System.currentTimeMillis()).apply();
+    }
 
     synchronized String readDoc() {
         try {
