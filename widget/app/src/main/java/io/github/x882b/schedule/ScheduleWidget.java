@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -30,6 +31,12 @@ public class ScheduleWidget extends AppWidgetProvider {
     public void onUpdate(Context c, AppWidgetManager m, int[] ids) {
         draw(c, m, ids, false);
         if (System.currentTimeMillis() - new Store(c).fetched() > MIN_GAP) pullThenRedraw(c);
+    }
+
+    /** Resized on the home screen: the month's weeks are stretched to the new height. */
+    @Override
+    public void onAppWidgetOptionsChanged(Context c, AppWidgetManager m, int id, Bundle options) {
+        m.notifyAppWidgetViewDataChanged(new int[]{id}, R.id.list);
     }
 
     @Override

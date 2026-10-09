@@ -7,6 +7,13 @@
     android:orientation="horizontal"
     android:paddingBottom="3dp">
 
+    <!-- invisible and zero wide: its minimum height (set from the widget's size) stretches the
+         week so the month fills the widget; the cells follow it (match_parent) -->
+    <TextView
+        android:id="@+id/rowmin"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content" />
+
     <LinearLayout
         android:id="@+id/cell0"
         android:layout_width="0dp"
