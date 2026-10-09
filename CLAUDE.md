@@ -246,8 +246,13 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
   "Vista" in the filter dialog. **Mes** (default, asked for after the tiles):
   the header reads "‹ Octubre 2026 ›", a row of weekday initials (L M X J V S
   D), then one list row per week (`row_week.xml`, 4–6 rows, Monday first),
-  seven cells (at least 72 dp tall, so a month fills a widget the size of
-  the user's) with the day number (today in a blue pill, neighbouring
+  seven cells (at least 72 dp tall; each week is stretched to fill the
+  widget's height: `RowsService.weekHeight()` takes the launcher's
+  `OPTION_APPWIDGET_MAX_HEIGHT`, subtracts the header, estimated from
+  widget.xml and the font scale (measured ~83 dp on the user's phone), and
+  sets it as `setMinHeight` on a zero-wide TextView in the row, the one
+  size-setter RemoteViews allows; resizing re-runs it via
+  `onAppWidgetOptionsChanged`) with the day number (today in a blue pill, neighbouring
   months faint and unboxed) and up to three events: a colour bar, the start
   time in bold (no room for the end) and the title on up to two lines
   (`cell_event.xml`); more than three → two and "+N". The cells

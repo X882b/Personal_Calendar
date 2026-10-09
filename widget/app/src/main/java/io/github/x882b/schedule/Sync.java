@@ -42,9 +42,9 @@ final class Sync {
             s.saveDoc(body);
             return true;
         } catch (JSONException e) {
-            s.failed("calendar.json couldn't be read");
+            s.failed("no se pudo leer calendar.json");
         } catch (IOException e) {
-            s.failed("offline");
+            s.failed("sin conexión");
         } finally {
             if (h != null) h.disconnect();
         }

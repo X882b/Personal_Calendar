@@ -62,6 +62,23 @@ public class RowsService extends RemoteViewsService {
                 ? String.valueOf(d.getDayOfMonth()) : d.getDayOfMonth() + " " + Agenda.mon(d);
     }
 
+    /**
+     * How tall each week should be for the month to fill the widget, in pixels; 0 if unknown.
+     * The widget's height comes from the launcher (portrait height = MAX_HEIGHT). The header
+     * above the list is estimated from widget.xml, with the text growing with the phone's font
+     * size, plus a margin: a little empty space at the bottom is better than a cut-off week.
+     */
+    static int weekHeight(Context c, int widgetId, int weeks) {
+        if (weeks == 0 || widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return 0;
+        int widgetDp = AppWidgetManager.getInstance(c).getAppWidgetOptions(widgetId)
+                .getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
+        if (widgetDp <= 0) return 0;
+        float fs = c.getResources().getConfiguration().fontScale;
+        float headerDp = 30 + 50 * fs + 10;   // ~83 dp measured on the user's phone at font size 1.0
+        float rowDp = (widgetDp - headerDp) / weeks - 3;   // 3 = the row's bottom padding
+        return rowDp <= 0 ? 0 : Math.round(rowDp * c.getResources().getDisplayMetrics().density);
+    }
+
     static final class Rows implements RemoteViewsFactory {
         private static final int CHALK = 0xFFE8E6E1, DIM = 0xFF8D919B, WHITE = 0xFFFFFFFF, OUT = 0xFF5D616B;
         private static final int[] CELL = {R.id.cell0, R.id.cell1, R.id.cell2, R.id.cell3, R.id.cell4, R.id.cell5, R.id.cell6},
@@ -78,7 +95,7 @@ public class RowsService extends RemoteViewsService {
         private List<Day> days = new ArrayList<>();
         private boolean month;
         private LocalDate shown = LocalDate.now(), gridStart = LocalDate.now();   // the month, and the Monday its grid starts on
-        private int weeks;
+        private int weeks, rowMinPx;
         private LocalDate today = LocalDate.now();
         private String now = "";
 
@@ -105,6 +122,7 @@ public class RowsService extends RemoteViewsService {
                 int lead = (Agenda.weekday(shown) + 6) % 7;   // weeks start on Monday
                 gridStart = shown.minusDays(lead);
                 weeks = json.isEmpty() ? 0 : (lead + shown.lengthOfMonth() + 6) / 7;
+                rowMinPx = weekHeight(c, widgetId, weeks);
             } else {
                 days = json.isEmpty() ? new ArrayList<>() : days(g.upcoming(today, DAYS_AHEAD));
             }
@@ -139,6 +157,7 @@ public class RowsService extends RemoteViewsService {
         /** One week of the month view. */
         private RemoteViews week(int position) {
             RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.row_week);
+            v.setInt(R.id.rowmin, "setMinHeight", rowMinPx);
             for (int k = 0; k < 7; k++) {
                 LocalDate d = gridStart.plusDays(position * 7L + k);
                 boolean in = d.getMonthValue() == shown.getMonthValue(), isToday = d.equals(today);
