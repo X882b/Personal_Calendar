@@ -38,9 +38,8 @@
                     android:layout_width="44dp"
                     android:layout_height="38dp"
                     android:layout_marginEnd="10dp"
-                    android:background="@drawable/arrow_bg"
                     android:contentDescription="Mes anterior"
-                    android:padding="7dp"
+                    android:padding="5dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_prev"
                     android:visibility="gone" />
@@ -61,9 +60,8 @@
                     android:layout_height="38dp"
                     android:layout_marginStart="10dp"
                     android:layout_marginEnd="6dp"
-                    android:background="@drawable/arrow_bg"
                     android:contentDescription="Mes siguiente"
-                    android:padding="7dp"
+                    android:padding="5dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_next"
                     android:visibility="gone" />
@@ -197,7 +195,19 @@
             android:textSize="11sp" />
     </LinearLayout>
 
+    <!-- the month view: up to six weeks (row_week.xml), filled in by MonthGrid -->
+    <LinearLayout
+        android:id="@+id/monthgrid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingEnd="10dp"
+        android:visibility="gone" />
+
+    <!-- the coming days (a list, RowsService), and the message while nothing is loaded -->
     <FrameLayout
+        android:id="@+id/listbox"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">

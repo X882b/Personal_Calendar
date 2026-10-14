@@ -33,10 +33,10 @@ public class ScheduleWidget extends AppWidgetProvider {
         if (System.currentTimeMillis() - new Store(c).fetched() > MIN_GAP) pullThenRedraw(c);
     }
 
-    /** Resized on the home screen: the month's weeks are stretched to the new height. */
+    /** Resized on the home screen: how many events fit in a day may have changed. */
     @Override
     public void onAppWidgetOptionsChanged(Context c, AppWidgetManager m, int id, Bundle options) {
-        m.notifyAppWidgetViewDataChanged(new int[]{id}, R.id.list);
+        draw(c, m, new int[]{id}, false);
     }
 
     @Override
@@ -56,9 +56,7 @@ public class ScheduleWidget extends AppWidgetProvider {
             int id = i.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
             if (id == AppWidgetManager.INVALID_APPWIDGET_ID) return;
             new Store(c).moveWidgetMonth(id, i.getIntExtra(EXTRA_STEP, 0));
-            AppWidgetManager m = AppWidgetManager.getInstance(c);
-            draw(c, m, new int[]{id}, false);
-            m.notifyAppWidgetViewDataChanged(new int[]{id}, R.id.list);
+            draw(c, AppWidgetManager.getInstance(c), new int[]{id}, false);   // name and grid in one update
             // someone is looking at the widget: a good moment to fetch if Android hasn't lately
             if (System.currentTimeMillis() - new Store(c).fetched() > MIN_GAP) pullThenRedraw(c);
             return;
@@ -94,17 +92,19 @@ public class ScheduleWidget extends AppWidgetProvider {
     static void draw(Context c, AppWidgetManager m, int[] ids, boolean busy) {
         Store s = new Store(c);
         boolean ready = s.connected() && !s.appUrl().isEmpty();
-        Agenda g = Agenda.parse(s.readDoc());
+        String json = s.readDoc();
+        Agenda g = Agenda.parse(json);
         for (int id : ids) {
             try {
-                drawOne(c, m, s, g, ready, id, busy);
+                drawOne(c, m, s, g, !json.isEmpty(), ready, id, busy);
             } catch (RuntimeException e) {
                 s.failed("widget: " + e.getClass().getSimpleName());
             }
         }
     }
 
-    private static void drawOne(Context c, AppWidgetManager m, Store s, Agenda g, boolean ready, int id, boolean busy) {
+    private static void drawOne(Context c, AppWidgetManager m, Store s, Agenda g, boolean loaded,
+                                boolean ready, int id, boolean busy) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
         boolean month = "month".equals(s.widgetView(id));
         int away = s.widgetMonth(id);
@@ -114,6 +114,13 @@ public class ScheduleWidget extends AppWidgetProvider {
             v.setTextViewText(R.id.date, Agenda.longDay(LocalDate.now()));
             v.setOnClickPendingIntent(R.id.date, open);
         }
+        // the month grid goes in this same update; the list box keeps the tiles and the
+        // "not connected / loading" message
+        boolean grid = month && loaded;
+        v.setViewVisibility(R.id.monthgrid, grid ? View.VISIBLE : View.GONE);
+        v.setViewVisibility(R.id.listbox, grid ? View.GONE : View.VISIBLE);
+        if (grid) MonthGrid.fill(c, v, id, g.only(s.widgetCat(id), s.widgetWho(id)),
+                LocalDate.now().withDayOfMonth(1).plusMonths(away), open);
         v.setViewVisibility(R.id.prev, month ? View.VISIBLE : View.GONE);
         v.setViewVisibility(R.id.next, month ? View.VISIBLE : View.GONE);
         v.setViewVisibility(R.id.wdays, month ? View.VISIBLE : View.GONE);
@@ -156,22 +163,11 @@ public class ScheduleWidget extends AppWidgetProvider {
         m.updateAppWidget(id, v);
     }
 
-    /**
-     * The month view's name over the grid, and what tapping it does: back to this month when
-     * the arrows moved it, otherwise open the app. The list calls this too (titleFromList) each
-     * time it loads a month, so the name can't disagree with the grid under it.
-     */
+    /** The month view's name, and what tapping it does: back to this month when the arrows moved it, otherwise open the app. */
     private static void monthTitle(Context c, RemoteViews v, int id, int away, PendingIntent open) {
         LocalDate shown = LocalDate.now().withDayOfMonth(1).plusMonths(away);
         v.setTextViewText(R.id.date, Agenda.cap(Agenda.MONTHS[shown.getMonthValue() - 1]) + " " + shown.getYear());
         v.setOnClickPendingIntent(R.id.date, away != 0 ? step(c, id, 0) : open);
-    }
-
-    static void titleFromList(Context c, int id, int away) {
-        Store s = new Store(c);
-        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
-        monthTitle(c, v, id, away, open(c, s, s.connected() && !s.appUrl().isEmpty()));
-        AppWidgetManager.getInstance(c).partiallyUpdateAppWidget(id, v);
     }
 
     private static PendingIntent setup(Context c) {

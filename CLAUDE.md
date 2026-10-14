@@ -245,32 +245,30 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
 - Two views per widget (`Store.widgetView`, `view_<id>`), chosen under
   "Vista" in the filter dialog. **Mes** (default, asked for after the tiles):
   the header reads "‹ Octubre 2026 ›", a row of weekday initials (L M X J V S
-  D), then one list row per week (`row_week.xml`, 4–6 rows, Monday first),
-  seven cells (at least 72 dp tall; each week is stretched to fill the
-  widget's height: `RowsService.weekHeight()` takes the launcher's
-  `OPTION_APPWIDGET_MAX_HEIGHT`, subtracts the header, estimated from
-  widget.xml and the font scale (measured ~83 dp on the user's phone), and
-  sets it as `setMinHeight` on a zero-wide TextView in the row, the one
-  size-setter RemoteViews allows; resizing re-runs it via
-  `onAppWidgetOptionsChanged`) with the day number (today in a blue pill, neighbouring
-  months faint and unboxed) and up to three events: a colour bar, the start
-  time in bold (no room for the end) and the title on up to two lines
-  (`cell_event.xml`); more than three → two and "+N". The cells
-  use `Agenda.dayEvents()`, so they match the app. ‹ › are 44×38 dp
-  buttons (vector chevrons on `arrow_bg`; the text glyphs were too small to
-  hit) and broadcast `ACTION_MONTH` with a step; the offset is `month_<id>`
-  and falls back to this month an hour after the last arrow tap
-  (`moved_<id>`); tapping the month's name while away goes back to this
-  month. The list also sets the month's name itself
-  (`ScheduleWidget.titleFromList`, a `partiallyUpdateAppWidget`) every time
-  it loads a month: on the user's phone the grid moved to November while
-  the name stayed on October, and the cause couldn't be seen from here.
-  An arrow tap also fetches if the copy is over 5 min old (that phone had
-  not fetched in four days, with no error shown). A widget that fails to
-  draw, or a fetch that throws anything unexpected, now says so in the
-  status line ("widget: …", "error: …") instead of failing silently. **Próximos días**: the
+  D), then the weeks (`row_week.xml`, 4–6 rows, Monday first), seven cells
+  each with the day number (today in a blue pill, neighbouring months faint
+  and unboxed) and events: a colour bar, the start time in bold (no room
+  for the end) and the title on up to two lines (`cell_event.xml`); as
+  many as fit (`MonthGrid.fit()`, from the launcher's
+  `OPTION_APPWIDGET_MAX_HEIGHT` less a ~85 dp header, an event counted at
+  three lines), else one fewer and "+N". The cells use `Agenda.dayEvents()`,
+  so they match the app. **The month is not a list**: `MonthGrid.fill()`
+  adds the weeks with `addView` into `R.id.monthgrid` in the same
+  `updateAppWidget` as the month's name, each week weight 1 so they share
+  the height. As a ListView (RowsService) the name and the grid were two
+  updates and the user's launcher kept dropping one: grid on November under
+  "Octubre", then "Julio 2027" over October. Don't move it back into the
+  list. ‹ › are 44×38 dp touch targets with vector chevrons on the
+  widget's own background (the user didn't want a box) and broadcast
+  `ACTION_MONTH` with a step; the offset is `month_<id>` and falls back to
+  this month an hour after the last arrow tap (`moved_<id>`); tapping the
+  month's name while away goes back to this month. An arrow tap also
+  fetches if the copy is over 5 min old (that phone had gone four days
+  without one). A widget that fails to draw, or a fetch that throws
+  anything unexpected, says so in the status line ("widget: …",
+  "error: …"). **Próximos días**: the
   tiles below.
-- `RowsService.java`: the list. The days are exactly `Agenda.upcoming()`
+- `RowsService.java`: the list, used only by **Próximos días**. The days are exactly `Agenda.upcoming()`
   (the app's Upcoming list), shown as tiles, three per list row
   (`row_days.xml`; the user asked for blocks that fill the width, from a
   screenshot where the list used half of it). A tile: "Hoy"/"Mañana"/short
