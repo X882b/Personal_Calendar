@@ -256,10 +256,19 @@ with no dependencies beyond the Android Gradle Plugin (AGP 8.7.3, Gradle
   months faint and unboxed) and up to three events: a colour bar, the start
   time in bold (no room for the end) and the title on up to two lines
   (`cell_event.xml`); more than three → two and "+N". The cells
-  use `Agenda.dayEvents()`, so they match the app. ‹ › broadcast
-  `ACTION_MONTH` with a step; the offset is `month_<id>` and falls back to
-  this month an hour after the last arrow tap (`moved_<id>`); tapping the
-  month's name while away goes back to this month. **Próximos días**: the
+  use `Agenda.dayEvents()`, so they match the app. ‹ › are 44×38 dp
+  buttons (vector chevrons on `arrow_bg`; the text glyphs were too small to
+  hit) and broadcast `ACTION_MONTH` with a step; the offset is `month_<id>`
+  and falls back to this month an hour after the last arrow tap
+  (`moved_<id>`); tapping the month's name while away goes back to this
+  month. The list also sets the month's name itself
+  (`ScheduleWidget.titleFromList`, a `partiallyUpdateAppWidget`) every time
+  it loads a month: on the user's phone the grid moved to November while
+  the name stayed on October, and the cause couldn't be seen from here.
+  An arrow tap also fetches if the copy is over 5 min old (that phone had
+  not fetched in four days, with no error shown). A widget that fails to
+  draw, or a fetch that throws anything unexpected, now says so in the
+  status line ("widget: …", "error: …") instead of failing silently. **Próximos días**: the
   tiles below.
 - `RowsService.java`: the list. The days are exactly `Agenda.upcoming()`
   (the app's Upcoming list), shown as tiles, three per list row
