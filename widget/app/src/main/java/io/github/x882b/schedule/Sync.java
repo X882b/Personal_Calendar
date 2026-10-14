@@ -45,6 +45,8 @@ final class Sync {
             s.failed("no se pudo leer calendar.json");
         } catch (IOException e) {
             s.failed("sin conexión");
+        } catch (RuntimeException e) {   // anything else: say what, rather than fail silently
+            s.failed("error: " + e.getClass().getSimpleName());
         } finally {
             if (h != null) h.disconnect();
         }

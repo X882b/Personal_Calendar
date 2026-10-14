@@ -33,15 +33,16 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <TextView
+                <ImageView
                     android:id="@+id/prev"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="44dp"
+                    android:layout_height="38dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/arrow_bg"
                     android:contentDescription="Mes anterior"
-                    android:paddingEnd="12dp"
-                    android:text="‹"
-                    android:textColor="@color/chalk"
-                    android:textSize="22sp"
+                    android:padding="7dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_prev"
                     android:visibility="gone" />
 
                 <TextView
@@ -54,16 +55,17 @@
                     android:textSize="15sp"
                     android:textStyle="bold" />
 
-                <TextView
+                <ImageView
                     android:id="@+id/next"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="44dp"
+                    android:layout_height="38dp"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/arrow_bg"
                     android:contentDescription="Mes siguiente"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="8dp"
-                    android:text="›"
-                    android:textColor="@color/chalk"
-                    android:textSize="22sp"
+                    android:padding="7dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_next"
                     android:visibility="gone" />
             </LinearLayout>
 

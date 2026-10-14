@@ -74,7 +74,7 @@ public class RowsService extends RemoteViewsService {
                 .getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
         if (widgetDp <= 0) return 0;
         float fs = c.getResources().getConfiguration().fontScale;
-        float headerDp = 30 + 50 * fs + 10;   // ~83 dp measured on the user's phone at font size 1.0
+        float headerDp = 78 + 24 * fs;   // ~83 dp measured on the user's phone at font size 1.0, +12 for the arrow buttons, +7 margin
         float rowDp = (widgetDp - headerDp) / weeks - 3;   // 3 = the row's bottom padding
         return rowDp <= 0 ? 0 : Math.round(rowDp * c.getResources().getDisplayMetrics().density);
     }
@@ -118,7 +118,10 @@ public class RowsService extends RemoteViewsService {
             month = "month".equals(s.widgetView(widgetId));
             if (month) {
                 days = new ArrayList<>();
-                shown = today.withDayOfMonth(1).plusMonths(s.widgetMonth(widgetId));
+                int away = s.widgetMonth(widgetId);
+                shown = today.withDayOfMonth(1).plusMonths(away);
+                // the name over the grid comes from the same reading as the grid itself
+                try { ScheduleWidget.titleFromList(c, widgetId, away); } catch (RuntimeException ignored) {}
                 int lead = (Agenda.weekday(shown) + 6) % 7;   // weeks start on Monday
                 gridStart = shown.minusDays(lead);
                 weeks = json.isEmpty() ? 0 : (lead + shown.lengthOfMonth() + 6) / 7;

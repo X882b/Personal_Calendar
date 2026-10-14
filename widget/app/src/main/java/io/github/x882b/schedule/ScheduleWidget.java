@@ -59,6 +59,8 @@ public class ScheduleWidget extends AppWidgetProvider {
             AppWidgetManager m = AppWidgetManager.getInstance(c);
             draw(c, m, new int[]{id}, false);
             m.notifyAppWidgetViewDataChanged(new int[]{id}, R.id.list);
+            // someone is looking at the widget: a good moment to fetch if Android hasn't lately
+            if (System.currentTimeMillis() - new Store(c).fetched() > MIN_GAP) pullThenRedraw(c);
             return;
         }
         super.onReceive(c, i);
@@ -71,8 +73,11 @@ public class ScheduleWidget extends AppWidgetProvider {
             try {
                 Sync.pull(app);
             } finally {
-                redrawAll(app, false);
-                done.finish();
+                try {
+                    redrawAll(app, false);
+                } finally {
+                    done.finish();
+                }
             }
         }).start();
     }
@@ -91,58 +96,91 @@ public class ScheduleWidget extends AppWidgetProvider {
         boolean ready = s.connected() && !s.appUrl().isEmpty();
         Agenda g = Agenda.parse(s.readDoc());
         for (int id : ids) {
-            RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
-            boolean month = "month".equals(s.widgetView(id));
-            int away = s.widgetMonth(id);
-            LocalDate shown = LocalDate.now().withDayOfMonth(1).plusMonths(away);
-            v.setTextViewText(R.id.date, month
-                    ? Agenda.cap(Agenda.MONTHS[shown.getMonthValue() - 1]) + " " + shown.getYear()
-                    : Agenda.longDay(LocalDate.now()));
-            v.setViewVisibility(R.id.prev, month ? View.VISIBLE : View.GONE);
-            v.setViewVisibility(R.id.next, month ? View.VISIBLE : View.GONE);
-            v.setViewVisibility(R.id.wdays, month ? View.VISIBLE : View.GONE);
-            v.setOnClickPendingIntent(R.id.prev, step(c, id, -1));
-            v.setOnClickPendingIntent(R.id.next, step(c, id, 1));
-            v.setTextViewText(R.id.status, busy ? "actualizando…" : status(s));
-
-            // the filter label: outlined for everything, filled when narrowed ("Ana · Horario laboral")
-            Agenda.Category cat = g.cat(s.widgetCat(id));
-            String who = s.widgetWho(id);
-            boolean one = "a".equals(who) || "b".equals(who), narrowed = one || cat != null;
-            String label = (one ? g.name(who) : "") + (one && cat != null ? " · " : "") + (cat != null ? cat.name : "");
-            v.setTextViewText(R.id.filter, (narrowed ? label : "Todo") + " ▾");
-            v.setInt(R.id.filter, "setBackgroundResource", narrowed ? R.drawable.chip_on : R.drawable.chip);
-            v.setTextColor(R.id.filter, narrowed ? 0xFF111316 : 0xFFE8E6E1);
-            v.setViewVisibility(R.id.filter, s.connected() ? View.VISIBLE : View.GONE);
-            Intent pick = new Intent(c, FilterActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-                    .setData(Uri.parse("widget://filter/" + id));   // one PendingIntent per widget
-            v.setOnClickPendingIntent(R.id.filter, PendingIntent.getActivity(c, 5, pick,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
-
-            Intent rows = new Intent(c, RowsService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
-            rows.setData(Uri.parse(rows.toUri(Intent.URI_INTENT_SCHEME)));   // one adapter per widget
-            v.setRemoteAdapter(R.id.list, rows);
-            v.setEmptyView(R.id.list, R.id.empty);
-            v.setTextViewText(R.id.empty, !s.connected() ? "Aún sin conectar.\nToca para configurar."
-                    : s.error().isEmpty() ? "Cargando…" : "No se pudo cargar el calendario:\n" + s.error());
-
-            PendingIntent setup = PendingIntent.getActivity(c, 0, new Intent(c, SetupActivity.class),
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            PendingIntent open = ready ? openUrl(c, s.appUrl(), 1, PendingIntent.FLAG_IMMUTABLE) : setup;
-            // the month's name takes a widget that was moved back to this month; otherwise it opens the app
-            v.setOnClickPendingIntent(R.id.date, month && away != 0 ? step(c, id, 0) : open);
-            v.setOnClickPendingIntent(R.id.status, open);
-            v.setOnClickPendingIntent(R.id.empty, open);
-            v.setOnClickPendingIntent(R.id.add, ready ? openUrl(c, s.appUrl() + "#new", 2, PendingIntent.FLAG_IMMUTABLE) : setup);
-            v.setOnClickPendingIntent(R.id.refresh, PendingIntent.getBroadcast(c, 3,
-                    new Intent(c, ScheduleWidget.class).setAction(ACTION_REFRESH),
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
-            // Every row opens the same address, so the template stays immutable and the rows'
-            // (empty) fill-in intents are ignored. A mutable PendingIntent around an implicit
-            // intent like this one throws on Android 14+.
-            v.setPendingIntentTemplate(R.id.list, open);
-            m.updateAppWidget(id, v);
+            try {
+                drawOne(c, m, s, g, ready, id, busy);
+            } catch (RuntimeException e) {
+                s.failed("widget: " + e.getClass().getSimpleName());
+            }
         }
+    }
+
+    private static void drawOne(Context c, AppWidgetManager m, Store s, Agenda g, boolean ready, int id, boolean busy) {
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
+        boolean month = "month".equals(s.widgetView(id));
+        int away = s.widgetMonth(id);
+        PendingIntent open = open(c, s, ready);
+        if (month) monthTitle(c, v, id, away, open);
+        else {
+            v.setTextViewText(R.id.date, Agenda.longDay(LocalDate.now()));
+            v.setOnClickPendingIntent(R.id.date, open);
+        }
+        v.setViewVisibility(R.id.prev, month ? View.VISIBLE : View.GONE);
+        v.setViewVisibility(R.id.next, month ? View.VISIBLE : View.GONE);
+        v.setViewVisibility(R.id.wdays, month ? View.VISIBLE : View.GONE);
+        v.setOnClickPendingIntent(R.id.prev, step(c, id, -1));
+        v.setOnClickPendingIntent(R.id.next, step(c, id, 1));
+        v.setTextViewText(R.id.status, busy ? "actualizando…" : status(s));
+
+        // the filter label: outlined for everything, filled when narrowed ("Ana · Horario laboral")
+        Agenda.Category cat = g.cat(s.widgetCat(id));
+        String who = s.widgetWho(id);
+        boolean one = "a".equals(who) || "b".equals(who), narrowed = one || cat != null;
+        String label = (one ? g.name(who) : "") + (one && cat != null ? " · " : "") + (cat != null ? cat.name : "");
+        v.setTextViewText(R.id.filter, (narrowed ? label : "Todo") + " ▾");
+        v.setInt(R.id.filter, "setBackgroundResource", narrowed ? R.drawable.chip_on : R.drawable.chip);
+        v.setTextColor(R.id.filter, narrowed ? 0xFF111316 : 0xFFE8E6E1);
+        v.setViewVisibility(R.id.filter, s.connected() ? View.VISIBLE : View.GONE);
+        Intent pick = new Intent(c, FilterActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                .setData(Uri.parse("widget://filter/" + id));   // one PendingIntent per widget
+        v.setOnClickPendingIntent(R.id.filter, PendingIntent.getActivity(c, 5, pick,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+
+        Intent rows = new Intent(c, RowsService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
+        rows.setData(Uri.parse(rows.toUri(Intent.URI_INTENT_SCHEME)));   // one adapter per widget
+        v.setRemoteAdapter(R.id.list, rows);
+        v.setEmptyView(R.id.list, R.id.empty);
+        v.setTextViewText(R.id.empty, !s.connected() ? "Aún sin conectar.\nToca para configurar."
+                : s.error().isEmpty() ? "Cargando…" : "No se pudo cargar el calendario:\n" + s.error());
+
+        PendingIntent setup = setup(c);
+        v.setOnClickPendingIntent(R.id.status, open);
+        v.setOnClickPendingIntent(R.id.empty, open);
+        v.setOnClickPendingIntent(R.id.add, ready ? openUrl(c, s.appUrl() + "#new", 2, PendingIntent.FLAG_IMMUTABLE) : setup);
+        v.setOnClickPendingIntent(R.id.refresh, PendingIntent.getBroadcast(c, 3,
+                new Intent(c, ScheduleWidget.class).setAction(ACTION_REFRESH),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+        // Every row opens the same address, so the template stays immutable and the rows'
+        // (empty) fill-in intents are ignored. A mutable PendingIntent around an implicit
+        // intent like this one throws on Android 14+.
+        v.setPendingIntentTemplate(R.id.list, open);
+        m.updateAppWidget(id, v);
+    }
+
+    /**
+     * The month view's name over the grid, and what tapping it does: back to this month when
+     * the arrows moved it, otherwise open the app. The list calls this too (titleFromList) each
+     * time it loads a month, so the name can't disagree with the grid under it.
+     */
+    private static void monthTitle(Context c, RemoteViews v, int id, int away, PendingIntent open) {
+        LocalDate shown = LocalDate.now().withDayOfMonth(1).plusMonths(away);
+        v.setTextViewText(R.id.date, Agenda.cap(Agenda.MONTHS[shown.getMonthValue() - 1]) + " " + shown.getYear());
+        v.setOnClickPendingIntent(R.id.date, away != 0 ? step(c, id, 0) : open);
+    }
+
+    static void titleFromList(Context c, int id, int away) {
+        Store s = new Store(c);
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget);
+        monthTitle(c, v, id, away, open(c, s, s.connected() && !s.appUrl().isEmpty()));
+        AppWidgetManager.getInstance(c).partiallyUpdateAppWidget(id, v);
+    }
+
+    private static PendingIntent setup(Context c) {
+        return PendingIntent.getActivity(c, 0, new Intent(c, SetupActivity.class),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private static PendingIntent open(Context c, Store s, boolean ready) {
+        return ready ? openUrl(c, s.appUrl(), 1, PendingIntent.FLAG_IMMUTABLE) : setup(c);
     }
 
     private static PendingIntent step(Context c, int id, int step) {
